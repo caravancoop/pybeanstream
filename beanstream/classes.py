@@ -79,7 +79,7 @@ class BeanClient(object):
                 e.text = data[k]
                 t.append(e)
 
-        return getattr(self.suds_client.service, service)(tostring(t)) 
+        return xmltodict(getattr(self.suds_client.service, service)(tostring(t)))
 
     def purchase_request(self,
                          cc_owner_name,
@@ -138,4 +138,4 @@ class BeanClient(object):
 
         response = self.process_transaction(service, transaction_data)
 
-        return xmltodict(response)
+        return response
