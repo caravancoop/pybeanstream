@@ -7,21 +7,6 @@ import os.path
 import urllib
 import logging
 
-
-# Disabled this because I don't want this module to be dependent on django.
-# # Tries to import django settings.
-# try:
-#     from django.conf import settings
-# except ImportError:
-#     settings = None
-
-# # Checks if TEMP_STORAGE is a valid attribute in django settings,
-# # otherwise, defaults to /tmp/
-# if hasattr(settings, 'TEMP_STORAGE'):
-#     TEMP_STORAGE = settings.TEMP_STORAGE
-# else:
-#     TEMP_STORAGE = '/tmp/'
-
 WSDL_NAME = 'ProcessTransaction.wsdl'
 
 WSDL_LOCAL_PREFIX = 'BeanStream'
