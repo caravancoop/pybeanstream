@@ -6,15 +6,30 @@ from xml_utils import xmltodict
 import os.path
 import urllib
 import logging
+from datetime import date
 
 WSDL_NAME = 'ProcessTransaction.wsdl'
-
 WSDL_LOCAL_PREFIX = 'BeanStream'
-
-WSDL_URL = {
-    'REMOTE': 'http://www.beanstream.com/soap/ProcessTransaction.wsdl',
-    'LOCAL': 'file://%s%s%s'  # Format: % (storage, WSDL_LOCAL_PREFIX, WSDL_NAME)
+WSDL_URL = 'http://www.beanstream.com/soap/ProcessTransaction.wsdl'
+CVD_ERRORS = {
+    '2': 'CVD Mismatch',
+    '3': 'CVD Not Verified',
+    '4': 'CVD Should have been present',
+    '5': 'CVD Issuer unable to process request',
+    '6': 'CVD Not Provided'
     }
+
+def flatten_dict(d):
+    """This transforms a dictionary in the format of {'k': ['v',]} to
+    {'k': 'v'}
+    To do: Can this be simplified with map?
+    """
+
+    n = {}
+    for k in d.keys():
+        print k, d[k][0]
+        n[k] = d[k][0]
+    return n
 
 class BaseBeanClientException(Exception):
     """Exception Raised By the BeanClient"""
@@ -30,6 +45,39 @@ class BeanDownloadError(BaseBeanClientException):
         e = "Wrong status code when trying to get WSDL file at: %s"
         super(BeanDownloadError, self).__init__(e % url)
 
+class BeanRequestFieldError(BaseBeanClientException):
+    """Error that's raised when the API responds with a field error.
+    It takes 2 parameters:
+    -Field list separated by comas if multiple, eg: 'Field1,Field2'
+    -Message list separated by comas if multiple, eg: 'Msg1,Msg2'
+    """
+
+    def __init__(self, field, messages):
+        self.fields = field.split(',')
+        self.messages = messages.split(',')
+        e = "Field error with request: %s" % field
+        super(BeanRequestFieldError, self).__init__(e)
+
+class BeanBadRequest(BaseBeanClientException):
+    def __init__(self):
+        e = "Request Failure"
+        super(BeanBadRequest, self).__init__(e)
+
+class BeanCVDError(BaseBeanClientException):
+    def __init__(self, err):
+        e = "CVD Failure: %s" % err
+        super(BeanCVDError, self).__init__(e)
+
+class BeanRequestFailure(BaseBeanClientException):
+    def __init__(self, err):
+        e = "Request Failed: %s " % err
+        super(BeanRequestFailure, self).__init__(e)
+
+class BeanUnimplementedError(BaseBeanClientException):
+    def __init__(self, feature):
+        e = "This feature is not implemented: %s" % feature
+        super(BeanUnimplementedError, self).__init__(e)
+
 class BeanClient(object):
     def __init__(self,
                  username,
@@ -37,9 +85,9 @@ class BeanClient(object):
                  merchant_id,
                  service_version="1.2",
                  storage='/tmp'):
+        """ Checks if WSDL file exists in local storage location with
+        name WSDL_LOCAL_PREFIX + WSDL_NAME, else downloads it."""
 
-        # Checks if WSDL file exists in local storage location with
-        # name WSDL_LOCAL_PREFIX + WSDL_NAME, else downloads it.
         p = '/'.join((storage, WSDL_LOCAL_PREFIX + WSDL_NAME))
 
         if not os.path.exists(p):
@@ -56,20 +104,22 @@ class BeanClient(object):
             }
 
     def download_wsdl(self, p):
-        # Downloads the wsdl file to local storage.
-        r = urllib.urlopen(WSDL_URL['REMOTE'])
+        """ Downloads the wsdl file to local storage."""
+
+        r = urllib.urlopen(WSDL_URL)
         if r.getcode() == 200:
             f = open(p, 'w')
             c = r.read()
             f.write(c)
             f.close()
         else:
-            raise BeanDownloadError(WSDL_URL['REMOTE'])
+            raise BeanDownloadError(WSDL_URL)
 
     def process_transaction(self, service, data):
-        # Transforms data to a xml request, calls remote service with
-        # supplied data, processes errors and returns an dictionary
-        # with response data.
+        """ Transforms data to a xml request, calls remote service
+        with supplied data, processes errors and returns an dictionary
+        with response data."""
+
         t = Element('transaction')
         
         for k in data.keys():
@@ -79,7 +129,40 @@ class BeanClient(object):
                 e.text = data[k]
                 t.append(e)
 
-        return xmltodict(getattr(self.suds_client.service, service)(tostring(t)))
+        r = xmltodict(getattr(self.suds_client.service,
+                              service)(tostring(t)))
+
+        r = flatten_dict(r)
+
+        self.check_for_errors(r)
+
+        return r
+
+    def check_for_errors(self, r):
+        """This checks for errors and errs out if an error is
+        detected.
+        """
+
+        # Check for badly formatted  request error:
+        if r['errorType'] == 'U':
+            raise BeanRequestFieldError(r['errorFields'],
+                                        r['messageText'])
+        # Check for another error I haven't seen yet:
+        elif r['errorType'] == 'S':
+            raise BeanBadRequest()
+
+        # Check for normal response:
+        elif r['errorType'] == 'N':
+            if r['trnApproved'] == '1':
+                return None
+            elif r['cvdId'] != 1:
+                raise BeanCVDError(CVD_ERRORS[r['cvdId']])
+            else:
+                raise BaseBeanClientException('Transaction not approved not sure why')
+
+        # Any other error (Shouldn't happen)
+        else:
+            raise BaseBeanClientException('This should not be raised.')
 
     def purchase_request(self,
                          cc_owner_name,
