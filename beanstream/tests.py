@@ -1,6 +1,7 @@
-from classes import BeanClient, BeanCVDError
+from classes import *
 import unittest
 import random
+import os
 
 # Important: You must create a file called 'test_settings.py' with the
 # following dictionary in it if you want the transaction tests to pass:
@@ -9,6 +10,58 @@ import random
 #    password : 'APIPASSWORD',
 #    merchant_id : 'APIMERCHANTID'
 #    }
+
+class TestComponents(unittest.TestCase):
+    def setUp(self):
+        from test_settings import credentials
+        self.b = BeanClient(credentials['username'],
+                            credentials['password'],
+                            credentials['merchant_id'],
+                            )
+        
+    def test_flatten_dict(self):
+        sample = {'animal': ['chicken',]}
+        sample = flatten_dict(sample)
+        self.assertEqual(sample['animal'], 'chicken')
+
+    def test_BeanRequestFieldError(self):
+        fields = 'field1,field2'
+        messages = 'msg1,msg2'
+        e = BeanRequestFieldError(fields, messages)
+        self.assertEqual(e.fields[1], 'field2')
+        self.assertEqual(e.messages[1], 'msg2')
+
+    def test_download_wsdl(self):
+        rand_str = str(random.randint(1000000, 9999999999999))
+        name = '_'.join(('test', rand_str))
+        path = '/'.join(('/tmp', name))
+        self.b.download_wsdl(path)
+        self.assertTrue(os.path.exists(path))
+
+    def test_check_for_errors(self):
+        r = {'errorType': 'U',
+             'errorFields': 'a,b',
+             'messageText': 'm,o'}
+        self.assertRaises(BeanRequestFieldError,
+                          self.b.check_for_errors,
+                          r)
+
+        r = {'errorType': 'S'}
+        self.assertRaises(BeanBadRequest,
+                          self.b.check_for_errors,
+                          r)
+
+
+        r = {'errorType': 'N',
+             'trnApproved': '0',
+             'cvdId': '2'}
+        self.assertRaises(BeanCVDError,
+                          self.b.check_for_errors,
+                          r)
+
+        r = {'errorType': 'N',
+             'trnApproved': '1'}
+        self.assertEqual(self.b.check_for_errors(r), None)
 
 class TestApiTransactions(unittest.TestCase):
     def setUp(self):
