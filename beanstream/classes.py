@@ -27,7 +27,6 @@ def flatten_dict(d):
 
     n = {}
     for k in d.keys():
-        print k, d[k][0]
         n[k] = d[k][0]
     return n
 

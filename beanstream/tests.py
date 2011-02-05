@@ -1,7 +1,6 @@
-from classes import BeanClient
+from classes import BeanClient, BeanCVDError
 import unittest
 import random
-
 
 # Important: You must create a file called 'test_settings.py' with the
 # following dictionary in it if you want the transaction tests to pass:
@@ -11,7 +10,6 @@ import random
 #    merchant_id : 'APIMERCHANTID'
 #    }
 
-
 class TestApiTransactions(unittest.TestCase):
     def setUp(self):
         from test_settings import credentials
@@ -19,7 +17,7 @@ class TestApiTransactions(unittest.TestCase):
                        credentials['password'],
                        credentials['merchant_id'])
         
-    def make_dict(self, cc_num, cvv, exp_m, exp_y):
+    def make_list(self, cc_num, cvv, exp_m, exp_y):
         # Returns a prepared list with test data already filled in.
         d = ('John Doe',
              cvv,
@@ -44,7 +42,7 @@ class TestApiTransactions(unittest.TestCase):
         that the correct response is returned """
 
         result = self.b.purchase_request(
-            *self.make_dict('4030000010001234', '123', '05', '15'))
+            *self.make_list('4030000010001234', '123', '05', '15'))
 
         self.assertEqual(result['trnApproved'][0], '1')
 
@@ -52,17 +50,16 @@ class TestApiTransactions(unittest.TestCase):
         """ This tests a failing Purchase transaction with VISA and verifies
         that the correct response is returned """
 
-        result = self.b.purchase_request(
-            *self.make_dict('4003050500040005', '123', '05', '15'))
-
-        self.assertEqual(result['trnApproved'][0], '0')
+        args = self.make_list('4003050500040005', '123', '05', '15')
+        self.assertRaises(BeanCVDError, self.b.purchase_request, *args)
+                
 
     def test_purchase_transaction_amex_approve(self):
         """ This tests a standard Purchase transaction with AMEX and verifies
         that the correct response is returned """
 
         result = self.b.purchase_request(
-            *self.make_dict('371100001000131', '1234', '05', '15'))
+            *self.make_list('371100001000131', '1234', '05', '15'))
 
         self.assertEqual(result['trnApproved'][0], '1')
 
@@ -70,17 +67,15 @@ class TestApiTransactions(unittest.TestCase):
         """ This tests a failing Purchase transaction with AMEX and verifies
         that the correct response is returned """
 
-        result = self.b.purchase_request(
-            *self.make_dict('342400001000180', '1234', '05', '15'))
-
-        self.assertEqual(result['trnApproved'][0], '0')
+        args = self.make_list('342400001000180', '1234', '05', '15')
+        self.assertRaises(BeanCVDError, self.b.purchase_request, *args)
 
     def test_purchase_transaction_mastercard_approve(self):
         """ This tests a standard Purchase transaction with mastercard and verifies
         that the correct response is returned """
 
         result = self.b.purchase_request(
-            *self.make_dict('5100000010001004', '123', '05', '15'))
+            *self.make_list('5100000010001004', '123', '05', '15'))
 
         self.assertEqual(result['trnApproved'][0], '1')
 
@@ -88,10 +83,8 @@ class TestApiTransactions(unittest.TestCase):
         """ This tests a failing Purchase transaction with mastercard and verifies
         that the correct response is returned """
 
-        result = self.b.purchase_request(
-            *self.make_dict('5100000020002000', '123', '05', '15'))
-
-        self.assertEqual(result['trnApproved'][0], '0')
+        args = self.make_list('5100000020002000', '123', '05', '15')
+        self.assertRaises(BeanCVDError, self.b.purchase_request, *args)
 
 if __name__ == '__main__':
     unittest.main()
