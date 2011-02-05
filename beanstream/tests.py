@@ -73,8 +73,8 @@ class TestApiTransactions(unittest.TestCase):
     def make_list(self, cc_num, cvv, exp_m, exp_y):
         # Returns a prepared list with test data already filled in.
         d = ('John Doe',
-             cvv,
              cc_num,
+             cvv,
              exp_m,
              exp_y,
              '10.00',

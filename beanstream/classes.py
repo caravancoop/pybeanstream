@@ -1,3 +1,37 @@
+"""
+Right now this only support Purchase transactions.
+Dependencies: suds
+Example usage:
+
+from beanstream.classes import BeanClient
+
+d = ('John Doe',
+     '371100001000131',
+     '1234',
+     '05',
+     '15',
+     '10.00',
+     '123456789',
+     'john.doe@pranana.com',
+     'John Doe',
+     '5145555555',
+     '88 Mont-Royal Est',
+     'Montreal',
+     'QC',
+     'H2T1N6',
+     'CA'
+     )
+
+b = BeanClient('MY_USERNAME',
+               'MY_PASSWORD',
+               'MY_MERCHANT_ID')
+
+response = b.purchase_request(*d)
+
+assert(response['trnApproved'] == '1')
+
+"""
+
 from suds.client import Client
 from suds.transport.http import HttpAuthenticated, HttpTransport
 from suds.transport.https import HttpAuthenticated as Https
@@ -165,8 +199,8 @@ class BeanClient(object):
 
     def purchase_request(self,
                          cc_owner_name,
-                         cc_cvv,
                          cc_num,
+                         cc_cvv,
                          cc_exp_month,
                          cc_exp_year,
                          amount,
