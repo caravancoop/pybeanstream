@@ -221,6 +221,9 @@ class BeanClient(object):
                          ):
         """Call this to create a Purchase. SecureCode / VerifiedByVisa
         is disabled by default.
+        All data types should be strings. Year and month must be 2
+        characters, if it's an integer lower than 10, format using
+        %02d (eg: may should be "05")
         """
 
         service = 'TransactionProcess'
