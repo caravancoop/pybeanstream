@@ -97,8 +97,9 @@ class BeanBadRequest(BaseBeanClientException):
         super(BeanBadRequest, self).__init__(e)
 
 class BeanCVDError(BaseBeanClientException):
-    def __init__(self, err):
+    def __init__(self, cvd_id, err):
         e = "CVD Failure: %s" % err
+        self.cvd_id = cvd_id
         super(BeanCVDError, self).__init__(e)
 
 class BeanRequestFailure(BaseBeanClientException):
@@ -189,7 +190,7 @@ class BeanClient(object):
             if r['trnApproved'] == '1':
                 return None
             elif r['cvdId'] != 1:
-                raise BeanCVDError(CVD_ERRORS[r['cvdId']])
+                raise BeanCVDError(CVD_ERRORS[r['cvdId']], CVD_ERRORS[r['messageText']])
             else:
                 raise BaseBeanClientException('Transaction not approved not sure why')
 
