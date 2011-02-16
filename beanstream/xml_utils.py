@@ -1,4 +1,5 @@
-# Taken from http://nonplatonic.com/ben.php?title=python_xml_to_dict_bow_to_my_recursive_g
+# This code was taken from... I think it's free as in Beer.
+# http://nonplatonic.com/ben.php?title=python_xml_to_dict_bow_to_my_recursive_g
 
 import xml.dom.minidom
 
