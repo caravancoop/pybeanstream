@@ -3,7 +3,7 @@
 # Copyright(c) 1999 Benoit Clennett-Sirois
 #
 # Benoit Clennett-Sirois hereby disclaims all copyright interest in
-# the program “PyBeanstream”.
+# the program "PyBeanstream".
 #
 # This file is part of PyBeanstream.
 #
