@@ -210,7 +210,7 @@ class BeanClient(object):
             if r['trnApproved'] == '1':
                 return None
             elif r['cvdId'] != 1:
-                raise BeanCVDError(CVD_ERRORS[r['cvdId']], CVD_ERRORS[r['messageText']])
+                raise BeanCVDError(CVD_ERRORS[r['cvdId']], r['messageText'])
             else:
                 raise BaseBeanClientException('Transaction not approved not sure why')
 
