@@ -34,6 +34,8 @@ import os
 class TestComponents(unittest.TestCase):
     def setUp(self):
         from test_settings import credentials
+        # Deleting file for testing download.
+        os.system('rm /tmp/BeanStreamProcessTransaction.wsdl')
         self.b = BeanClient(credentials['username'],
                             credentials['password'],
                             credentials['merchant_id'],
@@ -44,10 +46,11 @@ class TestComponents(unittest.TestCase):
         sample = flatten_dict(sample)
         self.assertEqual(sample['animal'], 'chicken')
 
-    def test_BeanRequestFieldError(self):
+    def test_BeanUserErrorError(self):
         fields = 'field1,field2'
         messages = 'msg1,msg2'
-        e = BeanRequestFieldError(fields, messages)
+        e = BeanUserError(fields, messages)
+        self.assertEqual(str(e), 'Field error with request: field1,field2')
         self.assertEqual(e.fields[1], 'field2')
         self.assertEqual(e.messages[1], 'msg2')
 
@@ -58,29 +61,36 @@ class TestComponents(unittest.TestCase):
         self.b.download_wsdl(path)
         self.assertTrue(os.path.exists(path))
 
+    def test_download_wsdl_fail(self):
+        rand_str = str(random.randint(1000000, 9999999999999))
+        name = '_'.join(('test', rand_str))
+        path = '/'.join(('/tmp', name))
+        self.assertRaises(IOError,
+                          self.b.download_wsdl,
+                          *(path,),
+                          **{'url':'http://abcdefgfail123/',})
+
     def test_check_for_errors(self):
         r = {'errorType': 'U',
              'errorFields': 'a,b',
              'messageText': 'm,o'}
-        self.assertRaises(BeanRequestFieldError,
+        self.assertRaises(BeanUserError,
                           self.b.check_for_errors,
                           r)
-
         r = {'errorType': 'S'}
-        self.assertRaises(BeanBadRequest,
+        self.assertRaises(BeanSystemError,
                           self.b.check_for_errors,
                           r)
-
-
         r = {'errorType': 'N',
              'trnApproved': '0',
-             'cvdId': '2'}
+             'cvdId': '2',
+             'messageText': 'bad'}
         self.assertRaises(BeanCVDError,
                           self.b.check_for_errors,
                           r)
-
         r = {'errorType': 'N',
-             'trnApproved': '1'}
+             'trnApproved': '1',
+             'messageText': 'bad'}
         self.assertEqual(self.b.check_for_errors(r), None)
 
 class TestApiTransactions(unittest.TestCase):
@@ -90,14 +100,14 @@ class TestApiTransactions(unittest.TestCase):
                        credentials['password'],
                        credentials['merchant_id'])
         
-    def make_list(self, cc_num, cvv, exp_m, exp_y):
+    def make_list(self, cc_num, cvv, exp_m, exp_y, amount='10.00'):
         # Returns a prepared list with test data already filled in.
         d = ('John Doe',
              cc_num,
              cvv,
              exp_m,
              exp_y,
-             '10.00',
+             amount,
              str(random.randint(1000, 1000000)),
              'john.doe@pranana.com',
              'John Doe',
@@ -106,7 +116,7 @@ class TestApiTransactions(unittest.TestCase):
              'Montreal',
              'QC',
              'H2T1N6',
-             'CA'
+             'CA',
              )
         return d
 
@@ -116,7 +126,15 @@ class TestApiTransactions(unittest.TestCase):
 
         result = self.b.purchase_request(
             *self.make_list('4030000010001234', '123', '05', '15'))
+        self.assertEqual(result['trnApproved'][0], '1')
 
+    def test_purchase_transaction_visa_approve_2_address_lines(self):
+        """ This tests a standard Purchase transaction with VISA and verifies
+        that the correct response is returned """
+
+        result = self.b.purchase_request(
+            *self.make_list('4030000010001234', '123', '05', '15'),
+             **{'cust_address_line2': 'rr2'})
         self.assertEqual(result['trnApproved'][0], '1')
 
     def test_purchase_transaction_visa_declined(self):
@@ -126,6 +144,12 @@ class TestApiTransactions(unittest.TestCase):
         args = self.make_list('4003050500040005', '123', '05', '15')
         self.assertRaises(BeanCVDError, self.b.purchase_request, *args)
                 
+    def test_purchase_transaction_visa_declined_cvd_ok(self):
+        """ This tests a failing Purchase transaction with VISA and verifies
+        that the correct response is returned, this is declined for
+        lack of available funds."""
+        args = self.make_list('4504481742333', '123', '05', '15', amount='101.00')
+        self.assertRaises(BeanDeclined, self.b.purchase_request, *args)
 
     def test_purchase_transaction_amex_approve(self):
         """ This tests a standard Purchase transaction with AMEX and verifies

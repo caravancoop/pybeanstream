@@ -66,6 +66,7 @@ WSDL_NAME = 'ProcessTransaction.wsdl'
 WSDL_LOCAL_PREFIX = 'BeanStream'
 WSDL_URL = 'http://www.beanstream.com/soap/ProcessTransaction.wsdl'
 CVD_ERRORS = {
+    '1': 'CVD Match',
     '2': 'CVD Mismatch',
     '3': 'CVD Not Verified',
     '4': 'CVD Should have been present',
@@ -91,46 +92,40 @@ class BaseBeanClientException(Exception):
         self.value = value
 
     def __str__(self):
-        return repr(self.value)
+        return str(self.value)
     
-class BeanDownloadError(BaseBeanClientException):
-    def __init__(self, url):
-        e = "Wrong status code when trying to get WSDL file at: %s"
-        super(BeanDownloadError, self).__init__(e % url)
-
-class BeanRequestFieldError(BaseBeanClientException):
-    """Error that's raised when the API responds with a field error.
+class BeanUserError(BaseBeanClientException):
+    """Error that's raised when the API responds with an error caused
+    by the data entered by the user.
     It takes 2 parameters:
     -Field list separated by comas if multiple, eg: 'Field1,Field2'
     -Message list separated by comas if multiple, eg: 'Msg1,Msg2'
     """
-
     def __init__(self, field, messages):
         self.fields = field.split(',')
         self.messages = messages.split(',')
         e = "Field error with request: %s" % field
-        super(BeanRequestFieldError, self).__init__(e)
+        super(BeanUserError, self).__init__(e)
 
-class BeanBadRequest(BaseBeanClientException):
-    def __init__(self):
-        e = "Request Failure"
-        super(BeanBadRequest, self).__init__(e)
+class BeanSystemError(BaseBeanClientException):
+    """This is raised when an error occurs on Beanstream's side. """
+    def __init__(self, r):
+        e = "Beanstream System Failure: %s" % r
+        super(BeanSystemError, self).__init__(e)
 
 class BeanCVDError(BaseBeanClientException):
+    """This is raised when CVD verification fails. """
     def __init__(self, cvd_id, err):
         e = "CVD Failure: %s" % err
         self.cvd_id = cvd_id
         super(BeanCVDError, self).__init__(e)
 
-class BeanRequestFailure(BaseBeanClientException):
-    def __init__(self, err):
-        e = "Request Failed: %s " % err
-        super(BeanRequestFailure, self).__init__(e)
-
-class BeanUnimplementedError(BaseBeanClientException):
-    def __init__(self, feature):
-        e = "This feature is not implemented: %s" % feature
-        super(BeanUnimplementedError, self).__init__(e)
+class BeanDeclined(BaseBeanClientException):
+    """This is raised when CVD verification fails. """
+    def __init__(self, msg_id, err):
+        e = "CVD Failure: %s, %s" % (msg_id, err)
+        self.msg_id = msg_id
+        super(BeanDeclined, self).__init__(e)
 
 class BeanClient(object):
     def __init__(self,
@@ -157,17 +152,14 @@ class BeanClient(object):
             'serviceVersion': service_version
             }
 
-    def download_wsdl(self, p):
+    def download_wsdl(self, p, url=WSDL_URL):
         """ Downloads the wsdl file to local storage."""
-
-        r = urllib.urlopen(WSDL_URL)
+        r = urllib.urlopen(url)
         if r.getcode() == 200:
             f = open(p, 'w')
             c = r.read()
             f.write(c)
             f.close()
-        else:
-            raise BeanDownloadError(WSDL_URL)
 
     def process_transaction(self, service, data):
         """ Transforms data to a xml request, calls remote service
@@ -196,27 +188,22 @@ class BeanClient(object):
         """This checks for errors and errs out if an error is
         detected.
         """
-
         # Check for badly formatted  request error:
         if r['errorType'] == 'U':
-            raise BeanRequestFieldError(r['errorFields'],
-                                        r['messageText'])
+            raise BeanUserError(r['errorFields'],
+                                r['messageText'])
         # Check for another error I haven't seen yet:
         elif r['errorType'] == 'S':
-            raise BeanBadRequest()
+            raise BeanSystemError(str(r))
 
         # Check for normal response:
         elif r['errorType'] == 'N':
             if r['trnApproved'] == '1':
                 return None
-            elif r['cvdId'] != 1:
+            elif r['cvdId'] == '1':
+                raise BeanDeclined(r['messageId'], r['messageText'])
+            elif r['cvdId'] in CVD_ERRORS.keys():
                 raise BeanCVDError(CVD_ERRORS[r['cvdId']], r['messageText'])
-            else:
-                raise BaseBeanClientException('Transaction not approved not sure why')
-
-        # Any other error (Shouldn't happen)
-        else:
-            raise BaseBeanClientException('This should not be raised.')
 
     def purchase_request(self,
                          cc_owner_name,
@@ -268,7 +255,7 @@ class BeanClient(object):
             'ordCountry': cust_country,
             'termURL': term_url,
             'vbvEnabled': vbv_enabled,
-            'scEnabled': sc_enabled
+            'scEnabled': sc_enabled,
             }
 
         if cust_address_line2:
