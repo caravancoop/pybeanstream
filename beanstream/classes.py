@@ -50,6 +50,17 @@ response = b.purchase_request(*d)
 
 assert(response['trnApproved'] == '1')
 
+API Notes:
+
+Possible CVD responses:
+    '1': 'CVD Match',
+    '2': 'CVD Mismatch',
+    '3': 'CVD Not Verified',
+    '4': 'CVD Should have been present',
+    '5': 'CVD Issuer unable to process request',
+    '6': 'CVD Not Provided'
+
+
 """
 
 from suds.client import Client
@@ -65,25 +76,12 @@ from datetime import date
 WSDL_NAME = 'ProcessTransaction.wsdl'
 WSDL_LOCAL_PREFIX = 'BeanStream'
 WSDL_URL = 'http://www.beanstream.com/soap/ProcessTransaction.wsdl'
-CVD_ERRORS = {
-    '1': 'CVD Match',
-    '2': 'CVD Mismatch',
-    '3': 'CVD Not Verified',
-    '4': 'CVD Should have been present',
-    '5': 'CVD Issuer unable to process request',
-    '6': 'CVD Not Provided'
-    }
-
-def flatten_dict(d):
-    """This transforms a dictionary in the format of {'k': ['v',]} to
-    {'k': 'v'}
-    To do: Can this be simplified with map?
-    """
-
-    n = {}
-    for k in d.keys():
-        n[k] = d[k][0]
-    return n
+API_RESPONSE_BOOLEAN_FIELDS = [
+    'trnApproved',
+    'avsProcessed',
+    'avsPostalMatch',
+    'avsAddrMatch',
+    ]
 
 class BaseBeanClientException(Exception):
     """Exception Raised By the BeanClient"""
@@ -113,19 +111,15 @@ class BeanSystemError(BaseBeanClientException):
         e = "Beanstream System Failure: %s" % r
         super(BeanSystemError, self).__init__(e)
 
-class BeanCVDError(BaseBeanClientException):
-    """This is raised when CVD verification fails. """
-    def __init__(self, cvd_id, err):
-        e = "CVD Failure: %s" % err
-        self.cvd_id = cvd_id
-        super(BeanCVDError, self).__init__(e)
-
-class BeanDeclined(BaseBeanClientException):
-    """This is raised when CVD verification fails. """
-    def __init__(self, msg_id, err):
-        e = "CVD Failure: %s, %s" % (msg_id, err)
-        self.msg_id = msg_id
-        super(BeanDeclined, self).__init__(e)
+class BeanResponse(object):
+    def __init__(self, r, trans_type):
+        # Turn dictionary values as object attributes.
+        for k in r.keys():
+            if k in API_RESPONSE_BOOLEAN_FIELDS:
+                assert(r[k][0] in ['0', '1'])
+                setattr(self, k, r[k][0] == '1')
+            else:
+                setattr(self, k, r[k][0])
 
 class BeanClient(object):
     def __init__(self,
@@ -178,10 +172,6 @@ class BeanClient(object):
         r = xmltodict(getattr(self.suds_client.service,
                               service)(tostring(t)))
 
-        r = flatten_dict(r)
-
-        self.check_for_errors(r)
-
         return r
 
     def check_for_errors(self, r):
@@ -189,43 +179,36 @@ class BeanClient(object):
         detected.
         """
         # Check for badly formatted  request error:
-        if r['errorType'] == 'U':
-            raise BeanUserError(r['errorFields'],
-                                r['messageText'])
+        if r.errorType == 'U':
+            raise BeanUserError(r.errorFields,
+                                r.messageText)
         # Check for another error I haven't seen yet:
-        elif r['errorType'] == 'S':
+        elif r.errorType == 'S':
             raise BeanSystemError(str(r))
 
-        # Check for normal response:
-        elif r['errorType'] == 'N':
-            if r['trnApproved'] == '1':
-                return None
-            elif r['cvdId'] == '1':
-                raise BeanDeclined(r['messageId'], r['messageText'])
-            elif r['cvdId'] in CVD_ERRORS.keys():
-                raise BeanCVDError(CVD_ERRORS[r['cvdId']], r['messageText'])
 
-    def purchase_request(self,
-                         cc_owner_name,
-                         cc_num,
-                         cc_cvv,
-                         cc_exp_month,
-                         cc_exp_year,
-                         amount,
-                         order_num,
-                         cust_email,
-                         cust_name,
-                         cust_phone,
-                         cust_address_line1,
-                         cust_city,
-                         cust_province,
-                         cust_postal_code,
-                         cust_country,
-                         term_url=None,
-                         vbv_enabled='0',
-                         sc_enabled='0',
-                         cust_address_line2=None,
-                         ):
+    def purchase_base_request(self,
+                              method,
+                              cc_owner_name,
+                              cc_num,
+                              cc_cvv,
+                              cc_exp_month,
+                              cc_exp_year,
+                              amount,
+                              order_num,
+                              cust_email,
+                              cust_name,
+                              cust_phone,
+                              cust_address_line1,
+                              cust_city,
+                              cust_province,
+                              cust_postal_code,
+                              cust_country,
+                              term_url=None,
+                              vbv_enabled='0',
+                              sc_enabled='0',
+                              cust_address_line2=None,
+                              ):
         """Call this to create a Purchase. SecureCode / VerifiedByVisa
         is disabled by default.
         All data types should be strings. Year and month must be 2
@@ -236,7 +219,7 @@ class BeanClient(object):
         service = 'TransactionProcess'
 
         transaction_data = {
-            'trnType': 'P',
+            'trnType': method,
             'trnCardOwner': cc_owner_name,
             'trnCardNumber': cc_num,
             'trnCardCvd': cc_cvv,
@@ -263,6 +246,84 @@ class BeanClient(object):
 
         transaction_data.update(self.auth_data)
 
-        response = self.process_transaction(service, transaction_data)
+        response = BeanResponse(
+            self.process_transaction(service, transaction_data),
+            method)
+
+        self.check_for_errors(response)
 
         return response
+
+    def adjustment_base_request(self,
+                              method,
+                              cc_owner_name,
+                              cc_num,
+                              cc_cvv,
+                              cc_exp_month,
+                              cc_exp_year,
+                              amount,
+                              order_num,
+                              adj_id,
+                              hash_value=None,
+                              hash_expiry=None,
+                              ):
+        """Call this to create a Purchase. SecureCode / VerifiedByVisa
+        is disabled by default.
+        All data types should be strings. Year and month must be 2
+        characters, if it's an integer lower than 10, format using
+        %02d (eg: may should be "05")
+        """
+
+        service = 'TransactionProcess'
+
+        transaction_data = {
+            'trnType': method,
+            'trnCardOwner': cc_owner_name,
+            'trnCardNumber': cc_num,
+            'trnCardCvd': cc_cvv,
+            'trnExpMonth': cc_exp_month,
+            'trnExpYear': cc_exp_year,
+            'trnOrderNumber': order_num,
+            'trnAmount': amount,
+            'adjId': adj_id,
+            }
+
+        if hash_value:
+            transaction_data['hashValue'] = hash_value
+            
+        if hash_expiry:
+            transaction_data['hashExpiry'] = hash_expiry
+            
+        transaction_data.update(self.auth_data)
+
+        response = BeanResponse(
+            self.process_transaction(service, transaction_data),
+            method)
+
+        self.check_for_errors(response)
+
+        return response
+
+    def purchase_request(self, *a, **kw):
+        """Call this to create a Purchase. SecureCode / VerifiedByVisa
+        is disabled by default.
+        All data types should be strings. Year and month must be 2
+        characters, if it's an integer lower than 10, format using
+        %02d (eg: may should be "05")
+        """
+        method='P'
+        return self.purchase_base_request(method, *a, **kw)
+
+    def preauth_request(self, *a, **kw):
+        """This does a pre-authorization request.
+        """
+        raise NotImplemented('This is not a complete feature.')
+        method='PA'
+        return self.purchase_base_request(method, *a, **kw)
+
+    def complete_request(self, *a, **kw):
+        """This does a pre-auth complete request.
+        """
+        raise NotImplemented('This is not a complete feature.')
+        method='PAC'
+        return self.adjustment_base_request(method, *a, **kw)
