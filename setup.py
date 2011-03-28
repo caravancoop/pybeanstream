@@ -27,12 +27,12 @@ except ImportError:
     use_setuptools()
     from setuptools import setup, find_packages
 
-setup(name='beanstream',
-      version='0.1',
+setup(name='pybeanstream',
+      version='0.2',
       description='Payment module to talk with the Beanstream API',
       author='Benoit C. Sirois',
       author_email='benoitcsirois@gmail.com',
-      namespace_packages=['beanstream',], 
+      namespace_packages=['pybeanstream',], 
       packages=find_packages(),
       install_requires=['suds',],
      )
