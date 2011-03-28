@@ -27,12 +27,21 @@ except ImportError:
     use_setuptools()
     from setuptools import setup, find_packages
 
-setup(name='pybeanstream',
+setup(name='PyBeanstream',
       version='0.2',
       description='Payment module to talk with the Beanstream API',
       author='Benoit C. Sirois',
       author_email='benoitcsirois@gmail.com',
       namespace_packages=['pybeanstream',], 
-      packages=find_packages(),
+      packages=['pybeanstream',],
+      classifiers = [
+        'Programming Language :: Python',
+        'Topic :: Office/Business',
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: GNU General Public License (GPL)',
+        ]
       install_requires=['suds',],
+      url='http://bitbucket.org/benoitcsirois/pybeanstream/',
+      license='LICENSE.txt',
+      long_description=open('README.txt').read(),
      )
