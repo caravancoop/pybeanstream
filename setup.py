@@ -39,7 +39,7 @@ setup(name='PyBeanstream',
         'Topic :: Office/Business',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: GNU General Public License (GPL)',
-        ]
+        ],
       install_requires=['suds',],
       url='http://bitbucket.org/benoitcsirois/pybeanstream/',
       license='LICENSE.txt',
