@@ -1,4 +1,6 @@
-=== About ===
+=====
+About
+=====
 
 PyBeanstream is a python client for the Beanstream Payment Gateway API. Although it works it may very well have a few bugs, use at your own risk. Feel free to report bugs.
 
@@ -6,18 +8,22 @@ About Beanstream:
 http://www.beanstream.com/public/index.asp
 
 
-=== Supported transaction types ===
+===========================
+Supported transaction types
+===========================
 
 Right now the only supported transaction types are "Purchase" Transactions, although it can very well be extended to support more.
 
 
-=== Mandatory Sample Code ===
+=====================
+Mandatory Sample Code
+=====================
 
 Check the tests.py file for test transactions.
 
 Here's a sample transaction:
 
-from beanstream.classes import BeanClient
+from pybeanstream.classes import BeanClient
 
 d = ('John Doe',
      '371100001000131',
