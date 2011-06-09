@@ -1,22 +1,22 @@
-# Copyright(c) 1999 Benoit Clennett-Sirois
-#
-# Benoit Clennett-Sirois hereby disclaims all copyright interest in
-# the program "PyBeanstream".
-#
+# tests.py
 # This file is part of PyBeanstream.
 #
-# PyBeanstream is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# Copyright(c) 2011 Benoit Clennett-Sirois. All rights reserved.
 #
-# PyBeanstream is distributed in the hope that it will be useful,
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 3 of the License, or (at your option) any later version.
+
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with PyBeanstream.  If not, see http://www.gnu.org/licenses/
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+# MA 02110-1301  USA
 
 from classes import *
 import unittest
@@ -26,9 +26,9 @@ import os
 # Important: You must create a file called 'test_settings.py' with the
 # following dictionary in it if you want the transaction tests to pass:
 #credentials = {
-#    username : 'APIUSERNAME',
-#    password : 'APIPASSWORD',
-#    merchant_id : 'APIMERCHANTID'
+#    'username' : 'APIUSERNAME',
+#    'password' : 'APIPASSWORD',
+#    'merchant_id' : 'APIMERCHANTID'
 #    }
 
 class TestComponents(unittest.TestCase):
@@ -36,6 +36,7 @@ class TestComponents(unittest.TestCase):
         from test_settings import credentials
         # Deleting file for testing download.
         #os.system('rm /tmp/BeanStreamProcessTransaction.wsdl')
+        key = None
         self.b = BeanClient(credentials['username'],
                             credentials['password'],
                             credentials['merchant_id'],
@@ -86,9 +87,11 @@ class TestComponents(unittest.TestCase):
 class TestApiTransactions(unittest.TestCase):
     def setUp(self):
         from test_settings import credentials
+        key = None
         self.b = BeanClient(credentials['username'],
                        credentials['password'],
-                       credentials['merchant_id'])
+                       credentials['merchant_id'],
+                            )
         
     def make_list(self, cc_num, cvv, exp_m, exp_y, amount='10.00', order_num=None):
         # Returns a prepared list with test data already filled in.
@@ -112,38 +115,35 @@ class TestApiTransactions(unittest.TestCase):
              )
         return d
 
-    # def test_pre_auth(self):
-    #     """ This tests a standard Purchase transaction with VISA and verifies
-    #     that the correct response is returned """
-    #     #print "TESTING: "
-    #     amount = '10.00'
-    #     order_num = str(random.randint(1000, 1000000))
-    #     cc_num = '4030000010001234'
-    #     cvv = '123'
-    #     exp_month = '05'
-    #     exp_year = '15'
-    #     result = self.b.preauth_request(
-    #         *self.make_list(cc_num,
-    #                         cvv,
-    #                         exp_month,
-    #                         exp_year,
-    #                         amount=amount,
-    #                         order_num=order_num))
+    def test_pre_auth(self):
+        """ This tests a standard Purchase transaction with VISA and verifies
+        that the correct response is returned """
+        amount = '0.01'
+        order_num = str(random.randint(1000, 1000000))
+        cc_num = '4030000010001234'
+        cvv = '123'
+        exp_month = '05'
+        exp_year = '15'
+        result = self.b.preauth_request(
+            *self.make_list(cc_num,
+                            cvv,
+                            exp_month,
+                            exp_year,
+                            amount=amount,
+                            order_num=order_num))
 
-    #     self.assertTrue(result.trnApproved)
+        self.assertTrue(result.trnApproved)
 
-    #     adj_id = result.trnId
-    #     result = self.b.complete_request(
-    #                 amount,
-    #                 cc_num,
-    #                 cvv,
-    #                 exp_month,
-    #                 exp_year,
-    #                 amount,
-    #                 order_num,
-    #                 adj_id)
-                        
-    #     #print result.__dict__
+        adj_id = result.trnId
+        result = self.b.complete_request(
+                    amount,
+                    cc_num,
+                    cvv,
+                    exp_month,
+                    exp_year,
+                    amount,
+                    order_num,
+                    adj_id)
 
     def test_purchase_transaction_visa_approve(self):
         """ This tests a standard Purchase transaction with VISA and verifies

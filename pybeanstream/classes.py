@@ -1,22 +1,22 @@
-# Copyright(c) 1999 Benoit Clennett-Sirois
-#
-# Benoit Clennett-Sirois hereby disclaims all copyright interest in
-# the program "PyBeanstream".
-#
+# classes.py
 # This file is part of PyBeanstream.
 #
-# PyBeanstream is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# Copyright(c) 2011 Benoit Clennett-Sirois. All rights reserved.
 #
-# PyBeanstream is distributed in the hope that it will be useful,
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 3 of the License, or (at your option) any later version.
+
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with PyBeanstream.  If not, see http://www.gnu.org/licenses/
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+# MA 02110-1301  USA
 
 """
 Right now this only support Purchase transactions.
@@ -75,7 +75,7 @@ from datetime import date
 
 WSDL_NAME = 'ProcessTransaction.wsdl'
 WSDL_LOCAL_PREFIX = 'BeanStream'
-WSDL_URL = 'http://www.beanstream.com/soap/ProcessTransaction.wsdl'
+WSDL_URL = 'https://www.beanstream.com/WebService/ProcessTransaction.asmx?WSDL'
 API_RESPONSE_BOOLEAN_FIELDS = [
     'trnApproved',
     'avsProcessed',
@@ -114,7 +114,12 @@ class BeanSystemError(BaseBeanClientException):
 class BeanResponse(object):
     def __init__(self, r, trans_type):
         # Turn dictionary values as object attributes.
-        for k in r.keys():
+        try:
+            keys = r.keys()
+        except AttributeError:
+            raise(BaseBeanClientException("Unintelligible response content: %s" % str(r)))
+
+        for k in keys:
             if k in API_RESPONSE_BOOLEAN_FIELDS:
                 assert(r[k][0] in ['0', '1'])
                 setattr(self, k, r[k][0] == '1')
@@ -122,30 +127,45 @@ class BeanResponse(object):
                 setattr(self, k, r[k][0])
 
 class BeanClient(object):
-    def __init__(self,
-                 username,
-                 password,
-                 merchant_id,
-                 service_version="1.2",
-                 storage='/tmp'):
-        """ Checks if WSDL file exists in local storage location with
-        name WSDL_LOCAL_PREFIX + WSDL_NAME, else downloads it."""
+    def __init__(
+        self,
+        username,
+        password,
+        merchant_id,
+        service_version="1.3",
+        storage='/tmp',
+        download=False):
+        """
+        This is used for client instatiation. Something fancy here:
+        If you want to enable pre-auth complete transaction ('PAC'),
+        the username and password you want to supply is not the same
+        username and password that moneris assigned you. It's the username
+        ans password you set-up in order settings in the Moneris control
+        panel. See this (at the bottom):
+        https://beanstreamsupport.pbworks.com/w/page/26445725/HASH-Validation-and-API-Passcodes
+        If download is True, checks if WSDL file exists in local storage location with
+        name WSDL_LOCAL_PREFIX + WSDL_NAME, else downloads
+        it. Otherwise, will use remote file.
+        """
 
-        p = '/'.join((storage, WSDL_LOCAL_PREFIX + WSDL_NAME))
+        if download:
+            p = '/'.join((storage, WSDL_LOCAL_PREFIX + WSDL_NAME))
 
-        if not os.path.exists(p):
-            self.download_wsdl(p)
+            if not os.path.exists(p):
+                self.download_wsdl(p)
+            u = 'file://' + p
+        else:
+            u = WSDL_URL
 
         # Instantiate suds client objects.
-        u = 'file://' + p
         self.suds_client = Client(u)
         self.auth_data= {
             'username': username,
             'password': password,
             'merchant_id': merchant_id,
-            'serviceVersion': service_version
+            'serviceVersion': service_version,
             }
-
+        
     def download_wsdl(self, p, url=WSDL_URL):
         """ Downloads the wsdl file to local storage."""
         r = urllib.urlopen(url)
@@ -161,31 +181,35 @@ class BeanClient(object):
         with response data."""
 
         t = Element('transaction')
-        
+        derp = {}
         for k in data.keys():
             val = data[k]
             if val:
+                derp[k] = data[k]
                 e = Element(k)
                 e.text = data[k]
                 t.append(e)
 
-        r = xmltodict(getattr(self.suds_client.service,
-                              service)(tostring(t)))
-
+        req = tostring(t)
+        resp = getattr(self.suds_client.service,
+                       service)(req)
+        r = xmltodict(resp)
         return r
 
     def check_for_errors(self, r):
         """This checks for errors and errs out if an error is
         detected.
         """
+        if hasattr(r, 'messageText'):
+            msg = r.messageText
+        else:
+            msg = 'None'
         # Check for badly formatted  request error:
         if r.errorType == 'U':
-            raise BeanUserError(r.errorFields,
-                                r.messageText)
+            raise BeanUserError(r.errorFields, msg)
         # Check for another error I haven't seen yet:
         elif r.errorType == 'S':
-            raise BeanSystemError(str(r))
-
+            raise BeanSystemError(msg)
 
     def purchase_base_request(self,
                               method,
@@ -215,7 +239,6 @@ class BeanClient(object):
         characters, if it's an integer lower than 10, format using
         %02d (eg: may should be "05")
         """
-
         service = 'TransactionProcess'
 
         transaction_data = {
@@ -264,8 +287,6 @@ class BeanClient(object):
                               amount,
                               order_num,
                               adj_id,
-                              hash_value=None,
-                              hash_expiry=None,
                               ):
         """Call this to create a Purchase. SecureCode / VerifiedByVisa
         is disabled by default.
@@ -288,12 +309,6 @@ class BeanClient(object):
             'adjId': adj_id,
             }
 
-        if hash_value:
-            transaction_data['hashValue'] = hash_value
-            
-        if hash_expiry:
-            transaction_data['hashExpiry'] = hash_expiry
-            
         transaction_data.update(self.auth_data)
 
         response = BeanResponse(
@@ -317,13 +332,13 @@ class BeanClient(object):
     def preauth_request(self, *a, **kw):
         """This does a pre-authorization request.
         """
-        raise NotImplemented('This is not a complete feature.')
+        #raise NotImplemented('This is not a complete feature.')
         method='PA'
         return self.purchase_base_request(method, *a, **kw)
 
     def complete_request(self, *a, **kw):
         """This does a pre-auth complete request.
         """
-        raise NotImplemented('This is not a complete feature.')
+        #raise NotImplemented('This is not a complete feature.')
         method='PAC'
         return self.adjustment_base_request(method, *a, **kw)
