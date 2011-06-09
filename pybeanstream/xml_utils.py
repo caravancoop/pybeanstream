@@ -2,8 +2,15 @@
 # http://nonplatonic.com/ben.php?title=python_xml_to_dict_bow_to_my_recursive_g
 
 import xml.dom.minidom
+import re
+
+BAD_CHARS = re.compile(r'<>|</>')
+
+def remove_bad_chars(data):
+	return BAD_CHARS.sub('', data)
 
 def xmltodict(xmlstring):
+	xmlstring = remove_bad_chars(xmlstring)
 	doc = xml.dom.minidom.parseString(xmlstring)
 	remove_whilespace_nodes(doc.documentElement)
 	return elementtodict(doc.documentElement)
