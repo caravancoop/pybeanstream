@@ -122,9 +122,21 @@ class BeanResponse(object):
         for k in keys:
             if k in API_RESPONSE_BOOLEAN_FIELDS:
                 assert(r[k][0] in ['0', '1'])
-                setattr(self, k, r[k][0] == '1')
+                r[k] = r[k][0] == '1'
             else:
-                setattr(self, k, r[k][0])
+                r[k] = r[k][0]
+
+        self.data = r
+        
+    def __getattr__(self, name):
+        # This is to keep backwards compatibility, I recommend
+        # using self.data dictionary, it's a waste to assign
+        # all dictionary keys as object attibutes. THis will be
+        # removed in the future.
+        try:
+            return self.data[name]
+        except:
+            raise AttributeError(name)        
 
 class BeanClient(object):
     def __init__(
@@ -178,7 +190,8 @@ class BeanClient(object):
     def process_transaction(self, service, data):
         """ Transforms data to a xml request, calls remote service
         with supplied data, processes errors and returns an dictionary
-        with response data."""
+        with response data.
+        """
 
         t = Element('transaction')
         derp = {}
@@ -200,15 +213,16 @@ class BeanClient(object):
         """This checks for errors and errs out if an error is
         detected.
         """
-        if hasattr(r, 'messageText'):
-            msg = r.messageText
+        data = r.data
+        if 'messageText' in data:
+            msg = data['messageText']
         else:
             msg = 'None'
         # Check for badly formatted  request error:
-        if r.errorType == 'U':
-            raise BeanUserError(r.errorFields, msg)
+        if data['errorType'] == 'U':
+            raise BeanUserError(data['errorFields'], msg)
         # Check for another error I haven't seen yet:
-        elif r.errorType == 'S':
+        elif data['errorType'] == 'S':
             raise BeanSystemError(msg)
 
     def purchase_base_request(self,
@@ -279,17 +293,11 @@ class BeanClient(object):
 
     def adjustment_base_request(self,
                               method,
-                              cc_owner_name,
-                              cc_num,
-                              cc_cvv,
-                              cc_exp_month,
-                              cc_exp_year,
                               amount,
                               order_num,
                               adj_id,
                               ):
-        """Call this to create a Purchase. SecureCode / VerifiedByVisa
-        is disabled by default.
+        """Call this to create a Payment adjustment.
         All data types should be strings. Year and month must be 2
         characters, if it's an integer lower than 10, format using
         %02d (eg: may should be "05")
@@ -299,11 +307,6 @@ class BeanClient(object):
 
         transaction_data = {
             'trnType': method,
-            'trnCardOwner': cc_owner_name,
-            'trnCardNumber': cc_num,
-            'trnCardCvd': cc_cvv,
-            'trnExpMonth': cc_exp_month,
-            'trnExpYear': cc_exp_year,
             'trnOrderNumber': order_num,
             'trnAmount': amount,
             'adjId': adj_id,
