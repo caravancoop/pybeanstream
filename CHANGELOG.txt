@@ -1,7 +1,0 @@
-2011-06-10  Benoit Clennett-Sirois  <benoitcsirois@gmail.com>
-
-    * Version 0.3 released.
-	* Now allows pre-authorized payments and pre-auth capture
-	* Using beanstream's newer SOAP API v. 1.3
-	* Downloading of WSDL is now only optional, disabled by default.
-	* 100% test coverage.
