@@ -27,7 +27,7 @@ except ImportError:
     from setuptools import setup, find_packages
 
 setup(name='PyBeanstream',
-      version='0.2',
+      version='0.3',
       description='Payment module to talk with the Beanstream API',
       author='Benoit C. Sirois',
       author_email='benoitcsirois@gmail.com',
