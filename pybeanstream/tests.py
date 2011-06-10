@@ -118,12 +118,15 @@ class TestApiTransactions(unittest.TestCase):
     def test_pre_auth(self):
         """ This tests a standard Purchase transaction with VISA and verifies
         that the correct response is returned """
+        # Preparing data
         amount = '0.01'
         order_num = str(random.randint(1000, 1000000))
         cc_num = '4030000010001234'
         cvv = '123'
         exp_month = '05'
         exp_year = '15'
+
+        # Executing pre-auth
         result = self.b.preauth_request(
             *self.make_list(cc_num,
                             cvv,
@@ -131,19 +134,26 @@ class TestApiTransactions(unittest.TestCase):
                             exp_year,
                             amount=amount,
                             order_num=order_num))
+        self.assertTrue(result.data['trnApproved'])
 
-        self.assertTrue(result.trnApproved)
-
-        adj_id = result.trnId
+        # Executing pre-auth complete
+        adj_id = result.data['trnId']
         result = self.b.complete_request(
-                    amount,
-                    cc_num,
-                    cvv,
-                    exp_month,
-                    exp_year,
                     amount,
                     order_num,
                     adj_id)
+        self.assertTrue(result.data['trnApproved'])
+
+    def test_unintelligible_error(self):
+        """ This tests when the API returns an unexpected data
+        set. """
+        try:
+            service = 'TransactionProcess'
+            BeanResponse(
+                getattr(self.b.suds_client.service,service)('asd'),
+                'PA')
+        except Exception, e:
+            self.assertTrue('Unintelligible response content:' in e.value)
 
     def test_purchase_transaction_visa_approve(self):
         """ This tests a standard Purchase transaction with VISA and verifies
@@ -151,7 +161,7 @@ class TestApiTransactions(unittest.TestCase):
 
         result = self.b.purchase_request(
             *self.make_list('4030000010001234', '123', '05', '15'))
-        self.assertTrue(result.trnApproved)
+        self.assertTrue(result.data['trnApproved'])
 
     def test_purchase_transaction_visa_approve_2_address_lines(self):
         """ This tests a standard Purchase transaction with VISA and verifies
@@ -160,7 +170,7 @@ class TestApiTransactions(unittest.TestCase):
         result = self.b.purchase_request(
             *self.make_list('4030000010001234', '123', '05', '15'),
              **{'cust_address_line2': 'rr2'})
-        self.assertTrue(result.trnApproved)
+        self.assertTrue(result.data['trnApproved'])
 
     def test_purchase_transaction_visa_declined(self):
         """ This tests a failing Purchase transaction with VISA and verifies
@@ -168,7 +178,7 @@ class TestApiTransactions(unittest.TestCase):
 
         result = self.b.purchase_request(
             *self.make_list('4003050500040005', '123', '05', '15'))
-        self.assertFalse(result.trnApproved)
+        self.assertFalse(result.data['trnApproved'])
                 
     def test_purchase_transaction_visa_declined_cvd_ok(self):
         """ This tests a failing Purchase transaction with VISA and verifies
@@ -176,7 +186,7 @@ class TestApiTransactions(unittest.TestCase):
         lack of available funds."""
         result = self.b.purchase_request(
             *self.make_list('4504481742333', '123', '05', '15', amount='101.00'))
-        self.assertFalse(result.trnApproved)
+        self.assertFalse(result.data['trnApproved'])
 
     def test_purchase_transaction_amex_approve(self):
         """ This tests a standard Purchase transaction with AMEX and verifies
@@ -184,7 +194,7 @@ class TestApiTransactions(unittest.TestCase):
 
         result = self.b.purchase_request(
             *self.make_list('371100001000131', '1234', '05', '15'))
-        self.assertTrue(result.trnApproved)
+        self.assertTrue(result.data['trnApproved'])
 
     def test_purchase_transaction_amex_declined(self):
         """ This tests a failing Purchase transaction with AMEX and verifies
@@ -192,7 +202,7 @@ class TestApiTransactions(unittest.TestCase):
 
         result = self.b.purchase_request(
             *self.make_list('342400001000180', '1234', '05', '15'))
-        self.assertFalse(result.trnApproved)
+        self.assertFalse(result.data['trnApproved'])
 
     def test_purchase_transaction_mastercard_approve(self):
         """ This tests a standard Purchase transaction with mastercard and verifies
@@ -200,7 +210,7 @@ class TestApiTransactions(unittest.TestCase):
 
         result = self.b.purchase_request(
             *self.make_list('5100000010001004', '123', '05', '15'))
-        self.assertTrue(result.trnApproved)
+        self.assertTrue(result.data['trnApproved'])
 
     def test_purchase_transaction_mastercard_declined(self):
         """ This tests a failing Purchase transaction with mastercard and verifies
@@ -208,7 +218,7 @@ class TestApiTransactions(unittest.TestCase):
 
         result = self.b.purchase_request(
             *self.make_list('5100000020002000', '123', '05', '15'))
-        self.assertFalse(result.trnApproved)
+        self.assertFalse(result.data['trnApproved'])
 
 if __name__ == '__main__':
     unittest.main()
