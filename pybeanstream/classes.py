@@ -71,6 +71,7 @@ from xml_utils import xmltodict
 import os.path
 import urllib
 import logging
+import unicodedata
 from datetime import date
 
 WSDL_NAME = 'ProcessTransaction.wsdl'
@@ -82,6 +83,22 @@ API_RESPONSE_BOOLEAN_FIELDS = [
     'avsPostalMatch',
     'avsAddrMatch',
     ]
+
+def strip_accents(s):
+    """ Strips accents from string """
+    if type(s) == str:
+        s = s.decode('utf-8')
+    return unicodedata.normalize('NFKD', s).encode('ascii', 'ignore')
+
+def fix_data(data):
+    """ Strips accents from data dict strings"""
+    for k in data.keys():
+        d = data[k]
+        if type(d) == unicode or type(d) == str:
+            data[k] = strip_accents(d)
+        elif type(d) == dict:
+            data[k] = fix_data(d)
+    return data
 
 class BaseBeanClientException(Exception):
     """Exception Raised By the BeanClient"""
@@ -283,6 +300,8 @@ class BeanClient(object):
 
         transaction_data.update(self.auth_data)
 
+        transaction_data = fix_data(transaction_data)
+
         response = BeanResponse(
             self.process_transaction(service, transaction_data),
             method)
@@ -313,6 +332,8 @@ class BeanClient(object):
             }
 
         transaction_data.update(self.auth_data)
+
+        transaction_data = fix_data(transaction_data)
 
         response = BeanResponse(
             self.process_transaction(service, transaction_data),
