@@ -84,6 +84,34 @@ API_RESPONSE_BOOLEAN_FIELDS = [
     'avsAddrMatch',
     ]
 
+SIZE_LIMITS = {
+    'username': 16,
+    'password': 16,
+    'merchant_id': 9,
+    'serviceVersion': 3, # Not specified, but 3 should work.
+    'trnType': 3, # Doc says 2, but doesn't make sense. PAC len == 3.
+    'trnCardOwner': 64,
+    'trnCardNumber': 20,
+    'trnCardCvd': 4,
+    'trnExpMonth': 2,
+    'trnExpYear': 2,
+    'trnOrderNumber': 30,
+    'trnAmount': 9,
+    'ordEmailAddress': 64,
+    'ordName': 64,
+    'ordPhoneNumber': 32,
+    'ordAddress1': 64,
+    'ordAddress2': 64,
+    'ordCity': 32,
+    'ordProvince': 2,
+    'ordPostalCode': 16,
+    'ordCountry': 2,
+    'termURL': None,
+    'vbvEnabled': 1,
+    'scEnabled': 1,
+    'adjId': 12,
+}
+
 def strip_accents(s):
     """ Strips accents from string """
     if type(s) == str:
@@ -163,7 +191,9 @@ class BeanClient(object):
         merchant_id,
         service_version="1.3",
         storage='/tmp',
-        download=False):
+        download=False,
+        fix_string_size=True,
+        ):
         """
         This is used for client instatiation. Something fancy here:
         If you want to enable pre-auth complete transaction ('PAC'),
@@ -175,8 +205,15 @@ class BeanClient(object):
         If download is True, checks if WSDL file exists in local storage location with
         name WSDL_LOCAL_PREFIX + WSDL_NAME, else downloads
         it. Otherwise, will use remote file.
+        'fix_string_size' parameter will automatically fix each string
+        size to the documented length to avoid problems. If set to
+        False, it will send the data regardless of string size.
         """
 
+        # Settings config attributes
+        self.fix_string_size = fix_string_size
+
+        # Downloading if requested
         if download:
             p = '/'.join((storage, WSDL_LOCAL_PREFIX + WSDL_NAME))
 
@@ -210,19 +247,28 @@ class BeanClient(object):
         with response data.
         """
 
+        # Create XML tree
         t = Element('transaction')
         derp = {}
         for k in data.keys():
             val = data[k]
+            # Fix data string size
+            if self.fix_string_size:
+                val = val[:SIZE_LIMITS[k]]
             if val:
                 derp[k] = data[k]
                 e = Element(k)
                 e.text = data[k]
                 t.append(e)
 
+        # Convert to string
         req = tostring(t)
+
+        # Process transaction
         resp = getattr(self.suds_client.service,
                        service)(req)
+
+        # Convert response
         r = xmltodict(resp)
         return r
 
@@ -259,10 +305,10 @@ class BeanClient(object):
                               cust_province,
                               cust_postal_code,
                               cust_country,
-                              term_url=None,
+                              term_url='',
                               vbv_enabled='0',
                               sc_enabled='0',
-                              cust_address_line2=None,
+                              cust_address_line2='',
                               ):
         """Call this to create a Purchase. SecureCode / VerifiedByVisa
         is disabled by default.
