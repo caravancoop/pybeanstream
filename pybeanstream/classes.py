@@ -256,7 +256,9 @@ class BeanClient(object):
             val = data[k]
             # Fix data string size
             if self.fix_string_size:
-                val = val[:SIZE_LIMITS[k]]
+                l = SIZE_LIMITS[k]
+                if l:
+                    val = val[:l]
             if val:
                 derp[k] = data[k]
                 e = Element(k)
