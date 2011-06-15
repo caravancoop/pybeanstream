@@ -84,6 +84,8 @@ API_RESPONSE_BOOLEAN_FIELDS = [
     'avsAddrMatch',
     ]
 
+# This defines the size forced by each field if fix_string_size is set
+# to True when instantiating client.
 SIZE_LIMITS = {
     'username': 16,
     'password': 16,
