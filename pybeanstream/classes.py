@@ -267,11 +267,10 @@ class BeanClient(object):
 
         # Convert to string
         req = tostring(t)
-
+        
         # Process transaction
         resp = getattr(self.suds_client.service,
                        service)(req)
-
         # Convert response
         r = xmltodict(resp)
         return r
@@ -286,6 +285,8 @@ class BeanClient(object):
         else:
             msg = 'None'
         # Check for badly formatted  request error:
+        if not 'errorType' in data:
+            raise BeanSystemError(msg)
         if data['errorType'] == 'U':
             raise BeanUserError(data['errorFields'], msg)
         # Check for another error I haven't seen yet:
@@ -309,7 +310,7 @@ class BeanClient(object):
                               cust_province,
                               cust_postal_code,
                               cust_country,
-                              term_url='',
+                              term_url=' ',
                               vbv_enabled='0',
                               sc_enabled='0',
                               cust_address_line2='',
@@ -361,11 +362,11 @@ class BeanClient(object):
         return response
 
     def adjustment_base_request(self,
-                              method,
-                              amount,
-                              order_num,
-                              adj_id,
-                              ):
+                                method,
+                                amount,
+                                order_num,
+                                adj_id,
+                                ):
         """Call this to create a Payment adjustment.
         All data types should be strings. Year and month must be 2
         characters, if it's an integer lower than 10, format using
