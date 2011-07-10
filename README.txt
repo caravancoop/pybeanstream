@@ -12,8 +12,9 @@ http://www.beanstream.com/public/index.asp
 Supported transaction types
 ===========================
 
-Right now the only supported transaction types are "Purchase" Transactions, although it can very well be extended to support more.
-
+-Pre-auth
+-Capture
+-Purchase
 
 =====================
 Mandatory Sample Code
