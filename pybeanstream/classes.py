@@ -84,6 +84,9 @@ API_RESPONSE_BOOLEAN_FIELDS = [
     'avsAddrMatch',
     ]
 
+# Default language for transactions. This is either FRE or ENG.
+DEFAULT_LANG = 'ENG'
+
 # This defines the size forced by each field if fix_string_size is set
 # to True when instantiating client.
 SIZE_LIMITS = {
@@ -112,6 +115,7 @@ SIZE_LIMITS = {
     'vbvEnabled': 1,
     'scEnabled': 1,
     'adjId': 12,
+    'trnLanguage': 3,
 }
 
 def strip_accents(s):
@@ -314,6 +318,7 @@ class BeanClient(object):
                               vbv_enabled='0',
                               sc_enabled='0',
                               cust_address_line2='',
+                              trn_language=DEFAULT_LANG,
                               ):
         """Call this to create a Purchase. SecureCode / VerifiedByVisa
         is disabled by default.
@@ -348,6 +353,9 @@ class BeanClient(object):
 
         if cust_address_line2:
             transaction_data['ordAddress2'] = cust_address_line2
+
+        if trn_language:
+            transaction_data['trnLanguage'] = trn_language
 
         transaction_data.update(self.auth_data)
 
