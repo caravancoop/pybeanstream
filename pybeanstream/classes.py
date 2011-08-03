@@ -290,7 +290,10 @@ class BeanClient(object):
             msg = 'None'
         # Check for badly formatted  request error:
         if not 'errorType' in data:
-            raise BeanSystemError(msg)
+            if 'errorFields' in data and 'errorMessage' in data:
+                raise BeanUserError(data['errorFields'], data['errorMessage'])
+            else:
+                raise BeanSystemError(msg)
         if data['errorType'] == 'U':
             raise BeanUserError(data['errorFields'], msg)
         # Check for another error I haven't seen yet:
@@ -397,6 +400,8 @@ class BeanClient(object):
         response = BeanResponse(
             self.process_transaction(service, transaction_data),
             method)
+
+        self._response = response
 
         self.check_for_errors(response)
 
