@@ -377,6 +377,7 @@ class BeanClient(object):
                                 amount,
                                 order_num,
                                 adj_id,
+                                trn_language=DEFAULT_LANG,
                                 ):
         """Call this to create a Payment adjustment.
         All data types should be strings. Year and month must be 2
@@ -392,6 +393,9 @@ class BeanClient(object):
             'trnAmount': amount,
             'adjId': adj_id,
             }
+
+        if trn_language:
+            transaction_data['trnLanguage'] = trn_language
 
         transaction_data.update(self.auth_data)
 
