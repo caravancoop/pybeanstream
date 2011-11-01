@@ -19,7 +19,6 @@
 # MA 02110-1301  USA
 
 """
-Right now this only support Purchase transactions.
 Dependencies: suds
 Example usage:
 
