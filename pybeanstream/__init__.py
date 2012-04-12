@@ -1,4 +1,4 @@
-# classes.py
+# __init__.py
 # This file is part of PyBeanstream.
 #
 # Copyright(c) 2011 Benoit Clennett-Sirois. All rights reserved.
