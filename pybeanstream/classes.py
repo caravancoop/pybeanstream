@@ -22,7 +22,7 @@
 Dependencies: suds
 Example usage:
 
-from beanstream.classes import BeanClient
+from pybeanstream.classes import BeanClient
 
 d = ('John Doe',
      '371100001000131',
@@ -62,20 +62,21 @@ Possible CVD responses:
 
 """
 
+import os.path
+import urllib
+import logging
+import unicodedata
 from suds.client import Client
 from suds.transport.http import HttpAuthenticated, HttpTransport
 from suds.transport.https import HttpAuthenticated as Https
 from xml.etree.ElementTree import Element, tostring
 from xml_utils import xmltodict
-import os.path
-import urllib
-import logging
-import unicodedata
 from datetime import date
 
 WSDL_NAME = 'ProcessTransaction.wsdl'
 WSDL_LOCAL_PREFIX = 'BeanStream'
 WSDL_URL = 'https://www.beanstream.com/WebService/ProcessTransaction.asmx?WSDL'
+
 API_RESPONSE_BOOLEAN_FIELDS = [
     'trnApproved',
     'avsProcessed',
@@ -123,13 +124,14 @@ def strip_accents(s):
         s = s.decode('utf-8')
     return unicodedata.normalize('NFKD', s).encode('ascii', 'ignore')
 
+
 def fix_data(data):
     """ Strips accents from data dict strings"""
     for k in data.keys():
         d = data[k]
-        if type(d) == unicode or type(d) == str:
+        if isinstance(d, basestring):
             data[k] = strip_accents(d)
-        elif type(d) == dict:
+        elif isinstance(d, dict):
             data[k] = fix_data(d)
     return data
 
@@ -423,13 +425,28 @@ class BeanClient(object):
     def preauth_request(self, *a, **kw):
         """This does a pre-authorization request.
         """
-        #raise NotImplemented('This is not a complete feature.')
         method='PA'
         return self.purchase_base_request(method, *a, **kw)
 
     def complete_request(self, *a, **kw):
         """This does a pre-auth complete request.
         """
-        #raise NotImplemented('This is not a complete feature.')
         method='PAC'
         return self.adjustment_base_request(method, *a, **kw)
+
+    def refund_request(self, *a, **kw):
+        """This does a refund request.
+        """
+        method='R'
+        return self.adjustment_base_request(method, *a, **kw)
+
+    def void_request(self, *a, **kw):
+        """This does a void request.
+
+        Voids are only allowed on the same day as the purchase was made.
+
+        Amount must be the full amount.
+        """
+        method='V'
+        return self.adjustment_base_request(method, *a, **kw)
+
