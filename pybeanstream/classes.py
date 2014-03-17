@@ -18,60 +18,24 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 # MA 02110-1301  USA
 
-"""
-Dependencies: suds
-Example usage:
-
-from pybeanstream.classes import BeanClient
-
-d = ('John Doe',
-     '371100001000131',
-     '1234',
-     '05',
-     '15',
-     '10.00',
-     '123456789',
-     'john.doe@pranana.com',
-     'John Doe',
-     '5145555555',
-     '88 Mont-Royal Est',
-     'Montreal',
-     'QC',
-     'H2T1N6',
-     'CA'
-     )
-
-b = BeanClient('MY_USERNAME',
-               'MY_PASSWORD',
-               'MY_MERCHANT_ID')
-
-response = b.purchase_request(*d)
-
-assert(response['trnApproved'] == '1')
-
-API Notes:
-
-Possible CVD responses:
-    '1': 'CVD Match',
-    '2': 'CVD Mismatch',
-    '3': 'CVD Not Verified',
-    '4': 'CVD Should have been present',
-    '5': 'CVD Issuer unable to process request',
-    '6': 'CVD Not Provided'
-
-
-"""
-
-import os.path
-import urllib
-import logging
 import unicodedata
 from suds.client import Client
-from suds.transport.http import HttpAuthenticated, HttpTransport
-from suds.transport.https import HttpAuthenticated as Https
 from xml.etree.ElementTree import Element, tostring
 from xml_utils import xmltodict
-from datetime import date
+
+# Uncomment the following for very verbose logging (do not enable in Production!)
+#
+#import logging
+#logging.basicConfig(level=logging.DEBUG)
+#logging.getLogger('suds.client').setLevel(logging.DEBUG)
+#logging.getLogger('suds.transport').setLevel(logging.DEBUG) # MUST BE THIS?
+#logging.getLogger('suds.xsd.schema').setLevel(logging.DEBUG)
+#logging.getLogger('suds.wsdl').setLevel(logging.DEBUG)
+#logging.getLogger('suds.resolver').setLevel(logging.DEBUG)
+#logging.getLogger('suds.xsd.query').setLevel(logging.DEBUG)
+#logging.getLogger('suds.xsd.basic').setLevel(logging.DEBUG)
+#logging.getLogger('suds.binding.marshaller').setLevel(logging.DEBUG)
+
 
 WSDL_NAME = 'ProcessTransaction.wsdl'
 WSDL_LOCAL_PREFIX = 'BeanStream'
@@ -118,22 +82,6 @@ SIZE_LIMITS = {
     'trnLanguage': 3,
 }
 
-def strip_accents(s):
-    """ Strips accents from string """
-    if type(s) == str:
-        s = s.decode('utf-8')
-    return unicodedata.normalize('NFKD', s).encode('ascii', 'ignore')
-
-
-def fix_data(data):
-    """ Strips accents from data dict strings"""
-    for k in data.keys():
-        d = data[k]
-        if isinstance(d, basestring):
-            data[k] = strip_accents(d)
-        elif isinstance(d, dict):
-            data[k] = fix_data(d)
-    return data
 
 class BaseBeanClientException(Exception):
     """Exception Raised By the BeanClient"""
@@ -144,6 +92,7 @@ class BaseBeanClientException(Exception):
     def __str__(self):
         return str(self.value)
     
+
 class BeanUserError(BaseBeanClientException):
     """Error that's raised when the API responds with an error caused
     by the data entered by the user.
@@ -157,11 +106,13 @@ class BeanUserError(BaseBeanClientException):
         e = "Field error with request: %s" % field
         super(BeanUserError, self).__init__(e)
 
+
 class BeanSystemError(BaseBeanClientException):
     """This is raised when an error occurs on Beanstream's side. """
     def __init__(self, r):
         e = "Beanstream System Failure: %s" % r
         super(BeanSystemError, self).__init__(e)
+
 
 class BeanResponse(object):
     def __init__(self, r, trans_type):
@@ -190,6 +141,7 @@ class BeanResponse(object):
         except:
             raise AttributeError(name)        
 
+
 class BeanClient(object):
     def __init__(
         self,
@@ -198,8 +150,8 @@ class BeanClient(object):
         merchant_id,
         service_version="1.3",
         storage='/tmp',
-        download=False,
         fix_string_size=True,
+        wsdl_url=WSDL_URL,
         ):
         """
         This is used for client instatiation. Something fancy here:
@@ -209,9 +161,8 @@ class BeanClient(object):
         ans password you set-up in order settings in the Moneris control
         panel. See this (at the bottom):
         https://beanstreamsupport.pbworks.com/w/page/26445725/HASH-Validation-and-API-Passcodes
-        If download is True, checks if WSDL file exists in local storage location with
-        name WSDL_LOCAL_PREFIX + WSDL_NAME, else downloads
-        it. Otherwise, will use remote file.
+
+        Removed download option because suds caches for us anyways.
         'fix_string_size' parameter will automatically fix each string
         size to the documented length to avoid problems. If set to
         False, it will send the data regardless of string size.
@@ -220,18 +171,11 @@ class BeanClient(object):
         # Settings config attributes
         self.fix_string_size = fix_string_size
 
-        # Downloading if requested
-        if download:
-            p = '/'.join((storage, WSDL_LOCAL_PREFIX + WSDL_NAME))
-
-            if not os.path.exists(p):
-                self.download_wsdl(p)
-            u = 'file://' + p
-        else:
-            u = WSDL_URL
-
         # Instantiate suds client objects.
-        self.suds_client = Client(u)
+        self.suds_client = Client(wsdl_url)
+        self.suds_client.set_options(headers={
+            'Content-Type': 'text/xml; charset=utf-8'
+            })
         self.auth_data= {
             'username': username,
             'password': password,
@@ -239,15 +183,6 @@ class BeanClient(object):
             'serviceVersion': service_version,
             }
         
-    def download_wsdl(self, p, url=WSDL_URL):
-        """ Downloads the wsdl file to local storage."""
-        r = urllib.urlopen(url)
-        if r.getcode() == 200:
-            f = open(p, 'w')
-            c = r.read()
-            f.write(c)
-            f.close()
-
     def process_transaction(self, service, data):
         """ Transforms data to a xml request, calls remote service
         with supplied data, processes errors and returns an dictionary
@@ -255,8 +190,9 @@ class BeanClient(object):
         """
 
         # Create XML tree
-        t = Element('transaction')
-        derp = {}
+        enc = 'utf-8'
+        t = Element('transaction', charset=enc)
+
         for k in data.keys():
             val = data[k]
             # Fix data string size
@@ -265,17 +201,25 @@ class BeanClient(object):
                 if l:
                     val = val[:l]
             if val:
-                derp[k] = data[k]
+                e_text = data[k]
+                if type(e_text) == bytes:
+                    e_text = e_text.decode(enc)
                 e = Element(k)
-                e.text = data[k]
+
+                e.text = e_text
                 t.append(e)
 
-        # Convert to string
-        req = tostring(t)
-        
+        # Request to string:
+        req_str = tostring(t, enc).decode(enc)
+
+        # Convert accents. After discussing w/ BeanStream, it appears
+        # the API does not support accented characters.
+        req = unicodedata.normalize('NFKD', req_str).encode('ascii', 'ignore').decode(enc)
+
         # Process transaction
         resp = getattr(self.suds_client.service,
                        service)(req)
+
         # Convert response
         r = xmltodict(resp)
         return r
@@ -363,8 +307,6 @@ class BeanClient(object):
 
         transaction_data.update(self.auth_data)
 
-        transaction_data = fix_data(transaction_data)
-
         response = BeanResponse(
             self.process_transaction(service, transaction_data),
             method)
@@ -399,8 +341,6 @@ class BeanClient(object):
             transaction_data['trnLanguage'] = trn_language
 
         transaction_data.update(self.auth_data)
-
-        transaction_data = fix_data(transaction_data)
 
         response = BeanResponse(
             self.process_transaction(service, transaction_data),

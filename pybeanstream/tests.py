@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # tests.py
 # This file is part of PyBeanstream.
 #
@@ -18,10 +19,12 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 # MA 02110-1301  USA
 
-from classes import *
+from classes import (
+    BeanClient, BeanUserError, BeanResponse,
+    BeanSystemError,
+)
 import unittest
 import random
-import os
 
 # Important: You must create a file called 'test_settings.py' with the
 # following dictionary in it if you want the transaction tests to pass:
@@ -34,9 +37,6 @@ import os
 class TestComponents(unittest.TestCase):
     def setUp(self):
         from test_settings import credentials
-        # Deleting file for testing download.
-        #os.system('rm /tmp/BeanStreamProcessTransaction.wsdl')
-        key = None
         self.b = BeanClient(credentials['username'],
                             credentials['password'],
                             credentials['merchant_id'],
@@ -49,22 +49,6 @@ class TestComponents(unittest.TestCase):
         self.assertEqual(str(e), 'Field error with request: field1,field2')
         self.assertEqual(e.fields[1], 'field2')
         self.assertEqual(e.messages[1], 'msg2')
-
-    def test_download_wsdl(self):
-        rand_str = str(random.randint(1000000, 9999999999999))
-        name = '_'.join(('test', rand_str))
-        path = '/'.join(('/tmp', name))
-        self.b.download_wsdl(path)
-        self.assertTrue(os.path.exists(path))
-
-    def test_download_wsdl_fail(self):
-        rand_str = str(random.randint(1000000, 9999999999999))
-        name = '_'.join(('test', rand_str))
-        path = '/'.join(('/tmp', name))
-        self.assertRaises(IOError,
-                          self.b.download_wsdl,
-                          *(path,),
-                          **{'url':'http://abcdefgfail123/',})
 
     def test_check_for_errors(self):
         r = BeanResponse({'errorType': 'U',
@@ -87,7 +71,6 @@ class TestComponents(unittest.TestCase):
 class TestApiTransactions(unittest.TestCase):
     def setUp(self):
         from test_settings import credentials
-        key = None
         self.b = BeanClient(credentials['username'],
                        credentials['password'],
                        credentials['merchant_id'],
@@ -97,7 +80,7 @@ class TestApiTransactions(unittest.TestCase):
         # Returns a prepared list with test data already filled in.
         if not order_num:
             order_num = str(random.randint(1000, 1000000))
-        d = ('John Doe',
+        d = ('Jérémy Noël',
              cc_num,
              cvv,
              exp_m,
@@ -105,7 +88,7 @@ class TestApiTransactions(unittest.TestCase):
              amount,
              order_num,
              'john.doe@pranana.com',
-             'John Doe',
+             'Jérémy Noël',
              '5145555555',
              '88 Mont-Royal Est',
              'Montreal',
@@ -144,6 +127,40 @@ class TestApiTransactions(unittest.TestCase):
                     adj_id)
         self.assertTrue(result.data['trnApproved'])
 
+    def test_pre_auth_bytes(self):
+        """ This tests a standard Purchase transaction with VISA and verifies
+        that the correct response is returned """
+        # Preparing data
+        amt = '0.01'.encode('ascii')
+        order_num = str(random.randint(1000, 1000000)).encode('ascii')
+        dat = (
+            b'Jeremy Noel',
+            b'4030000010001234',
+            b'123',
+            b'05',
+            b'15',
+            amt,
+            order_num,
+            b'john.doe@pranana.com',
+            b'Jeremy Noel',
+            b'5145555555',
+            b'88 Mont-Royal Est',
+            b'Montreal',
+            b'QC',
+            b'H2T1N6',
+            b'CA',
+        )
+        result = self.b.preauth_request(*dat)
+        self.assertTrue(result.data['trnApproved'])
+
+        # Executing pre-auth complete
+        adj_id = result.data['trnId']
+        result = self.b.complete_request(
+                    amt,
+                    order_num,
+                    adj_id)
+        self.assertTrue(result.data['trnApproved'])
+
     def test_unintelligible_error(self):
         """ This tests when the API returns an unexpected data
         set. """
@@ -152,7 +169,7 @@ class TestApiTransactions(unittest.TestCase):
             BeanResponse(
                 getattr(self.b.suds_client.service,service)('asd'),
                 'PA')
-        except Exception, e:
+        except Exception as e:
             self.assertTrue('Unintelligible response content:' in e.value)
 
     def test_purchase_transaction_visa_approve(self):

@@ -11,7 +11,6 @@ def remove_bad_chars(data):
 
 def xmltodict(xmlstring):
 	xmlstring = remove_bad_chars(xmlstring)
-	xmlstring = xmlstring.encode('utf8')
 	doc = xml.dom.minidom.parseString(xmlstring)
 	remove_whilespace_nodes(doc.documentElement)
 	return elementtodict(doc.documentElement)

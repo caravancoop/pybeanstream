@@ -50,3 +50,14 @@ b = BeanClient('MY_USERNAME',
 response = b.purchase_request(*d)
 
 assert(response['trnApproved'] == '1')
+
+
+API Notes:
+
+Possible CVD responses:
+    '1': 'CVD Match',
+    '2': 'CVD Mismatch',
+    '3': 'CVD Not Verified',
+    '4': 'CVD Should have been present',
+    '5': 'CVD Issuer unable to process request',
+    '6': 'CVD Not Provided'

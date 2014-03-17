@@ -2,6 +2,7 @@
 downloads/
 eggs/
 ^envs/parts/
+env3
 bin/
 src/
 .installed.cfg
