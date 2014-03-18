@@ -45,8 +45,8 @@ SIZE_LIMITS = {
     'username': 16,
     'password': 16,
     'merchant_id': 9,
-    'serviceVersion': 3, # Not specified, but 3 should work.
-    'trnType': 3, # Doc says 2, but doesn't make sense. PAC len == 3.
+    'serviceVersion': 3,  # Not specified, but 3 should work.
+    'trnType': 3,  # Doc says 2, but doesn't make sense. PAC len == 3.
     'trnCardOwner': 64,
     'trnCardNumber': 20,
     'trnCardCvd': 4,
@@ -79,7 +79,7 @@ class BaseBeanClientException(Exception):
 
     def __str__(self):
         return str(self.value)
-    
+
 
 class BeanUserError(BaseBeanClientException):
     """Error that's raised when the API responds with an error caused
@@ -108,7 +108,9 @@ class BeanResponse(object):
         try:
             keys = r.keys()
         except AttributeError:
-            raise(BaseBeanClientException("Unintelligible response content: %s" % str(r)))
+            raise(
+                BaseBeanClientException(
+                    "Unintelligible response content: %s" % str(r)))
 
         for k in keys:
             if k in API_RESPONSE_BOOLEAN_FIELDS:
@@ -121,26 +123,15 @@ class BeanResponse(object):
 
 
 class BeanClient(object):
-    def __init__(
-        self,
-        username,
-        password,
-        merchant_id,
-        service_version="1.3",
-        storage='/tmp',
-        fix_string_size=True,
-        wsdl_url=WSDL_URL,
-        ):
+    def __init__(self,
+                 username,
+                 password,
+                 merchant_id,
+                 service_version="1.3",
+                 storage='/tmp',
+                 fix_string_size=True,
+                 wsdl_url=WSDL_URL):
         """
-        This is used for client instatiation. Something fancy here:
-        If you want to enable pre-auth complete transaction ('PAC'),
-        the username and password you want to supply is not the same
-        username and password that moneris assigned you. It's the username
-        ans password you set-up in order settings in the Moneris control
-        panel. See this (at the bottom):
-        https://beanstreamsupport.pbworks.com/w/page/26445725/HASH-Validation-and-API-Passcodes
-
-        Removed download option because suds caches for us anyways.
         'fix_string_size' parameter will automatically fix each string
         size to the documented length to avoid problems. If set to
         False, it will send the data regardless of string size.
@@ -154,13 +145,13 @@ class BeanClient(object):
         self.suds_client.set_options(headers={
             'Content-Type': 'text/xml; charset=utf-8'
             })
-        self.auth_data= {
+        self.auth_data = {
             'username': username,
             'password': password,
             'merchant_id': merchant_id,
             'serviceVersion': service_version,
             }
-        
+
     def process_transaction(self, service, data):
         """ Transforms data to a xml request, calls remote service
         with supplied data, processes errors and returns an dictionary
@@ -192,7 +183,8 @@ class BeanClient(object):
 
         # Convert accents. After discussing w/ BeanStream, it appears
         # the API does not support accented characters.
-        req = unicodedata.normalize('NFKD', req_str).encode('ascii', 'ignore').decode(enc)
+        req = unicodedata.normalize(
+            'NFKD', req_str).encode('ascii', 'ignore').decode(enc)
 
         # Process transaction
         resp = getattr(self.suds_client.service,
@@ -337,25 +329,25 @@ class BeanClient(object):
         characters, if it's an integer lower than 10, format using
         %02d (eg: may should be "05")
         """
-        method='P'
+        method = 'P'
         return self.purchase_base_request(method, *a, **kw)
 
     def preauth_request(self, *a, **kw):
         """This does a pre-authorization request.
         """
-        method='PA'
+        method = 'PA'
         return self.purchase_base_request(method, *a, **kw)
 
     def complete_request(self, *a, **kw):
         """This does a pre-auth complete request.
         """
-        method='PAC'
+        method = 'PAC'
         return self.adjustment_base_request(method, *a, **kw)
 
     def refund_request(self, *a, **kw):
         """This does a refund request.
         """
-        method='R'
+        method = 'R'
         return self.adjustment_base_request(method, *a, **kw)
 
     def void_request(self, *a, **kw):
@@ -365,6 +357,5 @@ class BeanClient(object):
 
         Amount must be the full amount.
         """
-        method='V'
+        method = 'V'
         return self.adjustment_base_request(method, *a, **kw)
-
