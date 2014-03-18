@@ -15,6 +15,8 @@ Supported transaction types
 -Pre-auth
 -Capture
 -Purchase
+-Refund (or partial refund)
+-Void
 
 
 ==============
