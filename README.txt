@@ -4,6 +4,8 @@ About
 
 PyBeanstream is a python client for the Beanstream Payment Gateway API. Although it works it may very well have a few bugs, use at your own risk. Feel free to report bugs.
 
+This version was tested with python 2.7.4 and 3.3.1
+
 About Beanstream:
 http://www.beanstream.com/public/index.asp
 

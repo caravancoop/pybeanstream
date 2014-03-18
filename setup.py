@@ -28,10 +28,10 @@ except ImportError:
 
 
 setup(name='PyBeanstream',
-      version='0.5',
+      version='0.5.1',
       description='Payment module to talk with the Beanstream API',
       author='Benoit C. Sirois',
-      author_email='benoitcsirois@gmail.com',
+      author_email='bclennett@caravan.coop',
       packages=find_packages(),
       namespace_packages=['pybeanstream',], 
       classifiers = [
@@ -43,7 +43,7 @@ setup(name='PyBeanstream',
       install_requires=['suds-jurko==0.6',],
       setup_requires=['nose'],
       tests_require=['nose', 'coverage', 'mock'],
-      url='http://bitbucket.org/benoitcsirois/pybeanstream/',
+      url='https://repos.caravan.coop/open-source/pybeanstream',
       license='LICENSE.txt',
       long_description=open('README.txt').read(),
       test_suite = 'nose.collector'
