@@ -39,8 +39,11 @@ setup(name='PyBeanstream',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: GNU Library or Lesser General Public License (LGPL)',
         ],
-      install_requires=['suds-jurko',],
+      install_requires=['suds-jurko==0.6',],
+      setup_requires=['nose'],
+      tests_require=['nose', 'coverage', 'mock'],
       url='http://bitbucket.org/benoitcsirois/pybeanstream/',
       license='LICENSE.txt',
       long_description=open('README.txt').read(),
+      test_suite = 'nose.collector'
      )

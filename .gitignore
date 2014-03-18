@@ -1,0 +1,17 @@
+# buildout things
+env3
+env
+bin/
+src/
+*.egg-info
+.coverage
+*.egg
+.DS_Store
+*.pyc
+env/
+*~
+*#
+*.#*
+*.swp
+*.log*
+*.orig

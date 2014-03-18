@@ -19,28 +19,18 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 # MA 02110-1301  USA
 
-from classes import (
+from pybeanstream.client import (
     BeanClient, BeanUserError, BeanResponse,
-    BeanSystemError,
+    BeanSystemError, BaseBeanClientException,
 )
 import unittest
 import random
+from mock import Mock
 
-# Important: You must create a file called 'test_settings.py' with the
-# following dictionary in it if you want the transaction tests to pass:
-#credentials = {
-#    'username' : 'APIUSERNAME',
-#    'password' : 'APIPASSWORD',
-#    'merchant_id' : 'APIMERCHANTID'
-#    }
 
 class TestComponents(unittest.TestCase):
     def setUp(self):
-        from test_settings import credentials
-        self.b = BeanClient(credentials['username'],
-                            credentials['password'],
-                            credentials['merchant_id'],
-                            )
+        self.b = BeanClient('a_username', 'a_password', 'a_merchant_id')
         
     def test_BeanUserErrorError(self):
         fields = 'field1,field2'
@@ -70,11 +60,8 @@ class TestComponents(unittest.TestCase):
 
 class TestApiTransactions(unittest.TestCase):
     def setUp(self):
-        from test_settings import credentials
-        self.b = BeanClient(credentials['username'],
-                       credentials['password'],
-                       credentials['merchant_id'],
-                            )
+        self.b = BeanClient('a_username', 'a_password', 'a_merchant_id')
+        self.b.suds_client = Mock()
         
     def make_list(self, cc_num, cvv, exp_m, exp_y, amount='10.00', order_num=None):
         # Returns a prepared list with test data already filled in.
@@ -99,8 +86,10 @@ class TestApiTransactions(unittest.TestCase):
         return d
 
     def test_pre_auth(self):
-        """ This tests a standard Purchase transaction with VISA and verifies
-        that the correct response is returned """
+        """
+        Test pre-auth
+        """
+
         # Preparing data
         amount = '0.01'
         order_num = str(random.randint(1000, 1000000))
@@ -108,6 +97,9 @@ class TestApiTransactions(unittest.TestCase):
         cvv = '123'
         exp_month = '05'
         exp_year = '15'
+
+        self.b.suds_client.service.TransactionProcess.return_value = (
+            '<response><trnApproved>1</trnApproved><trnId>10000671</trnId><messageId>1</messageId><messageText>Approved</messageText><trnOrderNumber>900581</trnOrderNumber><authCode>TEST</authCode><errorType>N</errorType><errorFields></errorFields><responseType>T</responseType><trnAmount>0.01</trnAmount><trnDate>3/17/2014 6:37:50 PM</trnDate><avsProcessed>1</avsProcessed><avsId>N</avsId><avsResult>0</avsResult><avsAddrMatch>0</avsAddrMatch><avsPostalMatch>0</avsPostalMatch><avsMessage>Street address and Postal/ZIP do not match.</avsMessage><cvdId>1</cvdId><cardType>VI</cardType><trnType>PA</trnType><paymentMethod>CC</paymentMethod><ref1></ref1><ref2></ref2><ref3></ref3><ref4></ref4><ref5></ref5></response>')
 
         # Executing pre-auth
         result = self.b.preauth_request(
@@ -121,6 +113,12 @@ class TestApiTransactions(unittest.TestCase):
 
         # Executing pre-auth complete
         adj_id = result.data['trnId']
+        
+        # Now complete request:
+
+        self.b.suds_client.service.TransactionProcess.return_value = (
+            '<response><trnApproved>1</trnApproved><trnId>10000672</trnId><messageId>1</messageId><messageText>Approved</messageText><trnOrderNumber>900581</trnOrderNumber><authCode>TEST</authCode><errorType>N</errorType><errorFields></errorFields><responseType>T</responseType><trnAmount>0.01</trnAmount><trnDate>3/17/2014 6:37:51 PM</trnDate><avsProcessed>1</avsProcessed><avsId>N</avsId><avsResult>0</avsResult><avsAddrMatch>0</avsAddrMatch><avsPostalMatch>0</avsPostalMatch><avsMessage>Street address and Postal/ZIP do not match.</avsMessage><cvdId>2</cvdId><cardType>VI</cardType><trnType>PAC</trnType><paymentMethod>CC</paymentMethod><ref1></ref1><ref2></ref2><ref3></ref3><ref4></ref4><ref5></ref5></response>')
+
         result = self.b.complete_request(
                     amount,
                     order_num,
@@ -128,8 +126,9 @@ class TestApiTransactions(unittest.TestCase):
         self.assertTrue(result.data['trnApproved'])
 
     def test_pre_auth_bytes(self):
-        """ This tests a standard Purchase transaction with VISA and verifies
-        that the correct response is returned """
+        """ Tests that a parameters passed to preauth_request method
+        can be byte arrays. """
+
         # Preparing data
         amt = '0.01'.encode('ascii')
         order_num = str(random.randint(1000, 1000000)).encode('ascii')
@@ -150,11 +149,19 @@ class TestApiTransactions(unittest.TestCase):
             b'H2T1N6',
             b'CA',
         )
+
+        self.b.suds_client.service.TransactionProcess.return_value = (
+            '<response><trnApproved>1</trnApproved><trnId>10000673</trnId><messageId>1</messageId><messageText>Approved</messageText><trnOrderNumber>714409</trnOrderNumber><authCode>TEST</authCode><errorType>N</errorType><errorFields></errorFields><responseType>T</responseType><trnAmount>0.01</trnAmount><trnDate>3/17/2014 6:37:51 PM</trnDate><avsProcessed>1</avsProcessed><avsId>N</avsId><avsResult>0</avsResult><avsAddrMatch>0</avsAddrMatch><avsPostalMatch>0</avsPostalMatch><avsMessage>Street address and Postal/ZIP do not match.</avsMessage><cvdId>1</cvdId><cardType>VI</cardType><trnType>PA</trnType><paymentMethod>CC</paymentMethod><ref1></ref1><ref2></ref2><ref3></ref3><ref4></ref4><ref5></ref5></response>')
+
         result = self.b.preauth_request(*dat)
         self.assertTrue(result.data['trnApproved'])
 
         # Executing pre-auth complete
         adj_id = result.data['trnId']
+
+        self.b.suds_client.service.TransactionProcess.return_value = (
+            '<response><trnApproved>1</trnApproved><trnId>10000674</trnId><messageId>1</messageId><messageText>Approved</messageText><trnOrderNumber>714409</trnOrderNumber><authCode>TEST</authCode><errorType>N</errorType><errorFields></errorFields><responseType>T</responseType><trnAmount>0.01</trnAmount><trnDate>3/17/2014 6:37:52 PM</trnDate><avsProcessed>1</avsProcessed><avsId>N</avsId><avsResult>0</avsResult><avsAddrMatch>0</avsAddrMatch><avsPostalMatch>0</avsPostalMatch><avsMessage>Street address and Postal/ZIP do not match.</avsMessage><cvdId>2</cvdId><cardType>VI</cardType><trnType>PAC</trnType><paymentMethod>CC</paymentMethod><ref1></ref1><ref2></ref2><ref3></ref3><ref4></ref4><ref5></ref5></response>')
+
         result = self.b.complete_request(
                     amt,
                     order_num,
@@ -164,17 +171,17 @@ class TestApiTransactions(unittest.TestCase):
     def test_unintelligible_error(self):
         """ This tests when the API returns an unexpected data
         set. """
-        try:
-            service = 'TransactionProcess'
-            BeanResponse(
-                getattr(self.b.suds_client.service,service)('asd'),
-                'PA')
-        except Exception as e:
-            self.assertTrue('Unintelligible response content:' in e.value)
+
+        self.assertRaises(
+            BaseBeanClientException, BeanResponse, 'asd', 'PA')
+
 
     def test_purchase_transaction_visa_approve(self):
         """ This tests a standard Purchase transaction with VISA and verifies
         that the correct response is returned """
+
+        self.b.suds_client.service.TransactionProcess.return_value = (
+            '<response><trnApproved>1</trnApproved><trnId>10000679</trnId><messageId>1</messageId><messageText>Approved</messageText><trnOrderNumber>138889</trnOrderNumber><authCode>TEST</authCode><errorType>N</errorType><errorFields></errorFields><responseType>T</responseType><trnAmount>10.00</trnAmount><trnDate>3/17/2014 6:37:55 PM</trnDate><avsProcessed>1</avsProcessed><avsId>N</avsId><avsResult>0</avsResult><avsAddrMatch>0</avsAddrMatch><avsPostalMatch>0</avsPostalMatch><avsMessage>Street address and Postal/ZIP do not match.</avsMessage><cvdId>1</cvdId><cardType>VI</cardType><trnType>P</trnType><paymentMethod>CC</paymentMethod><ref1></ref1><ref2></ref2><ref3></ref3><ref4></ref4><ref5></ref5></response>')
 
         result = self.b.purchase_request(
             *self.make_list('4030000010001234', '123', '05', '15'))
@@ -183,6 +190,9 @@ class TestApiTransactions(unittest.TestCase):
     def test_purchase_transaction_visa_approve_2_address_lines(self):
         """ This tests a standard Purchase transaction with VISA and verifies
         that the correct response is returned """
+
+        self.b.suds_client.service.TransactionProcess.return_value = (
+            '<response><trnApproved>1</trnApproved><trnId>10000680</trnId><messageId>1</messageId><messageText>Approved</messageText><trnOrderNumber>596771</trnOrderNumber><authCode>TEST</authCode><errorType>N</errorType><errorFields></errorFields><responseType>T</responseType><trnAmount>10.00</trnAmount><trnDate>3/17/2014 6:37:56 PM</trnDate><avsProcessed>1</avsProcessed><avsId>N</avsId><avsResult>0</avsResult><avsAddrMatch>0</avsAddrMatch><avsPostalMatch>0</avsPostalMatch><avsMessage>Street address and Postal/ZIP do not match.</avsMessage><cvdId>1</cvdId><cardType>VI</cardType><trnType>P</trnType><paymentMethod>CC</paymentMethod><ref1></ref1><ref2></ref2><ref3></ref3><ref4></ref4><ref5></ref5></response>')
 
         result = self.b.purchase_request(
             *self.make_list('4030000010001234', '123', '05', '15'),
@@ -193,6 +203,9 @@ class TestApiTransactions(unittest.TestCase):
         """ This tests a failing Purchase transaction with VISA and verifies
         that the correct response is returned """
 
+        self.b.suds_client.service.TransactionProcess.return_value = (
+            '<response><trnApproved>0</trnApproved><trnId>10000681</trnId><messageId>7</messageId><messageText>DECLINE</messageText><trnOrderNumber>554213</trnOrderNumber><authCode></authCode><errorType>N</errorType><errorFields></errorFields><responseType>T</responseType><trnAmount>10.00</trnAmount><trnDate>3/17/2014 6:37:57 PM</trnDate><avsProcessed>1</avsProcessed><avsId>N</avsId><avsResult>0</avsResult><avsAddrMatch>0</avsAddrMatch><avsPostalMatch>0</avsPostalMatch><avsMessage>Street address and Postal/ZIP do not match.</avsMessage><cvdId>1</cvdId><cardType>VI</cardType><trnType>P</trnType><paymentMethod>CC</paymentMethod><ref1></ref1><ref2></ref2><ref3></ref3><ref4></ref4><ref5></ref5></response>')
+
         result = self.b.purchase_request(
             *self.make_list('4003050500040005', '123', '05', '15'))
         self.assertFalse(result.data['trnApproved'])
@@ -201,6 +214,9 @@ class TestApiTransactions(unittest.TestCase):
         """ This tests a failing Purchase transaction with VISA and verifies
         that the correct response is returned, this is declined for
         lack of available funds."""
+        self.b.suds_client.service.TransactionProcess.return_value = (
+            '<response><trnApproved>0</trnApproved><trnId>10000682</trnId><messageId>7</messageId><messageText>DECLINE</messageText><trnOrderNumber>722130</trnOrderNumber><authCode></authCode><errorType>N</errorType><errorFields></errorFields><responseType>T</responseType><trnAmount>101.00</trnAmount><trnDate>3/17/2014 6:37:58 PM</trnDate><avsProcessed>1</avsProcessed><avsId>N</avsId><avsResult>0</avsResult><avsAddrMatch>0</avsAddrMatch><avsPostalMatch>0</avsPostalMatch><avsMessage>Street address and Postal/ZIP do not match.</avsMessage><cvdId>1</cvdId><cardType>VI</cardType><trnType>P</trnType><paymentMethod>CC</paymentMethod><ref1></ref1><ref2></ref2><ref3></ref3><ref4></ref4><ref5></ref5></response>')
+
         result = self.b.purchase_request(
             *self.make_list('4504481742333', '123', '05', '15', amount='101.00'))
         self.assertFalse(result.data['trnApproved'])
@@ -208,6 +224,9 @@ class TestApiTransactions(unittest.TestCase):
     def test_purchase_transaction_amex_approve(self):
         """ This tests a standard Purchase transaction with AMEX and verifies
         that the correct response is returned """
+
+        self.b.suds_client.service.TransactionProcess.return_value = (
+            '<response><trnApproved>1</trnApproved><trnId>10000675</trnId><messageId>1</messageId><messageText>Approved</messageText><trnOrderNumber>458165</trnOrderNumber><authCode>TEST</authCode><errorType>N</errorType><errorFields></errorFields><responseType>T</responseType><trnAmount>10.00</trnAmount><trnDate>3/17/2014 6:37:53 PM</trnDate><avsProcessed>1</avsProcessed><avsId>N</avsId><avsResult>0</avsResult><avsAddrMatch>0</avsAddrMatch><avsPostalMatch>0</avsPostalMatch><avsMessage>Street address and Postal/ZIP do not match.</avsMessage><cvdId>1</cvdId><cardType>AM</cardType><trnType>P</trnType><paymentMethod>CC</paymentMethod><ref1></ref1><ref2></ref2><ref3></ref3><ref4></ref4><ref5></ref5></response>')
 
         result = self.b.purchase_request(
             *self.make_list('371100001000131', '1234', '05', '15'))
@@ -217,6 +236,9 @@ class TestApiTransactions(unittest.TestCase):
         """ This tests a failing Purchase transaction with AMEX and verifies
         that the correct response is returned """
 
+        self.b.suds_client.service.TransactionProcess.return_value = (
+            '<response><trnApproved>0</trnApproved><trnId>10000676</trnId><messageId>7</messageId><messageText>DECLINE</messageText><trnOrderNumber>189112</trnOrderNumber><authCode></authCode><errorType>N</errorType><errorFields></errorFields><responseType>T</responseType><trnAmount>10.00</trnAmount><trnDate>3/17/2014 6:37:53 PM</trnDate><avsProcessed>1</avsProcessed><avsId>N</avsId><avsResult>0</avsResult><avsAddrMatch>0</avsAddrMatch><avsPostalMatch>0</avsPostalMatch><avsMessage>Street address and Postal/ZIP do not match.</avsMessage><cvdId>1</cvdId><cardType>AM</cardType><trnType>P</trnType><paymentMethod>CC</paymentMethod><ref1></ref1><ref2></ref2><ref3></ref3><ref4></ref4><ref5></ref5></response>')
+
         result = self.b.purchase_request(
             *self.make_list('342400001000180', '1234', '05', '15'))
         self.assertFalse(result.data['trnApproved'])
@@ -225,6 +247,9 @@ class TestApiTransactions(unittest.TestCase):
         """ This tests a standard Purchase transaction with mastercard and verifies
         that the correct response is returned """
 
+        self.b.suds_client.service.TransactionProcess.return_value = (
+            '<response><trnApproved>1</trnApproved><trnId>10000677</trnId><messageId>1</messageId><messageText>Approved</messageText><trnOrderNumber>590048</trnOrderNumber><authCode>TEST</authCode><errorType>N</errorType><errorFields></errorFields><responseType>T</responseType><trnAmount>10.00</trnAmount><trnDate>3/17/2014 6:37:54 PM</trnDate><avsProcessed>1</avsProcessed><avsId>N</avsId><avsResult>0</avsResult><avsAddrMatch>0</avsAddrMatch><avsPostalMatch>0</avsPostalMatch><avsMessage>Street address and Postal/ZIP do not match.</avsMessage><cvdId>1</cvdId><cardType>MC</cardType><trnType>P</trnType><paymentMethod>CC</paymentMethod><ref1></ref1><ref2></ref2><ref3></ref3><ref4></ref4><ref5></ref5></response>')
+
         result = self.b.purchase_request(
             *self.make_list('5100000010001004', '123', '05', '15'))
         self.assertTrue(result.data['trnApproved'])
@@ -232,6 +257,9 @@ class TestApiTransactions(unittest.TestCase):
     def test_purchase_transaction_mastercard_declined(self):
         """ This tests a failing Purchase transaction with mastercard and verifies
         that the correct response is returned """
+
+        self.b.suds_client.service.TransactionProcess.return_value = (
+            '<response><trnApproved>0</trnApproved><trnId>10000678</trnId><messageId>7</messageId><messageText>DECLINE</messageText><trnOrderNumber>446429</trnOrderNumber><authCode></authCode><errorType>N</errorType><errorFields></errorFields><responseType>T</responseType><trnAmount>10.00</trnAmount><trnDate>3/17/2014 6:37:55 PM</trnDate><avsProcessed>1</avsProcessed><avsId>N</avsId><avsResult>0</avsResult><avsAddrMatch>0</avsAddrMatch><avsPostalMatch>0</avsPostalMatch><avsMessage>Street address and Postal/ZIP do not match.</avsMessage><cvdId>1</cvdId><cardType>MC</cardType><trnType>P</trnType><paymentMethod>CC</paymentMethod><ref1></ref1><ref2></ref2><ref3></ref3><ref4></ref4><ref5></ref5></response>')
 
         result = self.b.purchase_request(
             *self.make_list('5100000020002000', '123', '05', '15'))
