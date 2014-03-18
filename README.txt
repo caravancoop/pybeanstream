@@ -16,9 +16,17 @@ Supported transaction types
 -Capture
 -Purchase
 
-=====================
-Mandatory Sample Code
-=====================
+
+==============
+Running tests:
+==============
+
+python setup.py nosetests
+
+
+===========
+Sample Code
+===========
 
 Check the tests.py file for test transactions.
 
