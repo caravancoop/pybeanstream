@@ -23,6 +23,7 @@ from pybeanstream.client import (
     BeanClient, BeanUserError, BeanResponse,
     BeanSystemError, BaseBeanClientException,
 )
+from pybeanstream.xml_utils import xmltodict
 import unittest
 import random
 from mock import Mock
@@ -32,6 +33,16 @@ class TestComponents(unittest.TestCase):
     def setUp(self):
         self.b = BeanClient('a_username', 'a_password', 'a_merchant_id')
         
+    def test_xml_to_dict(self):
+        """
+        Tests xml_to_dict's remove_whilespace_nodes
+        """
+        xml = "<xml><a>test</a></xml>"
+        self.assertEqual(xmltodict(xml), {'a': ['test']})
+        
+        xml = "<xml><a>test</a><b> </b></xml>"
+        self.assertEqual(xmltodict(xml), {'a': ['test'], 'b': [None]})
+
     def test_BeanUserErrorError(self):
         fields = 'field1,field2'
         messages = 'msg1,msg2'
@@ -265,5 +276,32 @@ class TestApiTransactions(unittest.TestCase):
             *self.make_list('5100000020002000', '123', '05', '15'))
         self.assertFalse(result.data['trnApproved'])
 
-if __name__ == '__main__':
-    unittest.main()
+
+    def test_refund(self):
+        """
+        Tests refunds
+        """
+        self.b.suds_client.service.TransactionProcess.return_value = (
+            '<response><trnApproved>1</trnApproved><trnId>10000800</trnId><messageId>1</messageId><messageText>Approved</messageText><trnOrderNumber>567121</trnOrderNumber><authCode>TEST</authCode><errorType>N</errorType><errorFields></errorFields><responseType>T</responseType><trnAmount>0.01</trnAmount><trnDate>3/17/2014 8:37:04 PM</trnDate><avsProcessed>1</avsProcessed><avsId>N</avsId><avsResult>0</avsResult><avsAddrMatch>0</avsAddrMatch><avsPostalMatch>0</avsPostalMatch><avsMessage>Street address and Postal/ZIP do not match.</avsMessage><cvdId>2</cvdId><cardType>AM</cardType><trnType>R</trnType><paymentMethod>CC</paymentMethod><ref1></ref1><ref2></ref2><ref3></ref3><ref4></ref4><ref5></ref5></response>')
+
+        result = self.b.refund_request(
+            amount='0.01',
+            order_num='567121',
+            adj_id='10000787')
+
+        self.assertTrue(result.data['trnApproved'])
+
+
+    def test_voids(self):
+        """
+        Tests refunds
+        """
+        self.b.suds_client.service.TransactionProcess.return_value = (
+            '<response><trnApproved>1</trnApproved><trnId>10000804</trnId><messageId>1</messageId><messageText>Approved</messageText><trnOrderNumber>243364</trnOrderNumber><authCode>TEST</authCode><errorType>N</errorType><errorFields></errorFields><responseType>T</responseType><trnAmount>10.00</trnAmount><trnDate>3/17/2014 8:42:24 PM</trnDate><avsProcessed>1</avsProcessed><avsId>N</avsId><avsResult>0</avsResult><avsAddrMatch>0</avsAddrMatch><avsPostalMatch>0</avsPostalMatch><avsMessage>Street address and Postal/ZIP do not match.</avsMessage><cvdId>2</cvdId><cardType>VI</cardType><trnType>VP</trnType><paymentMethod>CC</paymentMethod><ref1></ref1><ref2></ref2><ref3></ref3><ref4></ref4><ref5></ref5></response>')
+
+        result = self.b.void_request(
+            amount='10.00',
+            order_num='243364',
+            adj_id='10000770')
+
+        self.assertTrue(result.data['trnApproved'])
