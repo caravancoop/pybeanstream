@@ -24,19 +24,6 @@ from suds.client import Client
 from xml.etree.ElementTree import Element, tostring
 from pybeanstream.xml_utils import xmltodict
 
-# Uncomment the following for very verbose logging (do not enable in Production!)
-#
-#import logging
-#logging.basicConfig(level=logging.DEBUG)
-#logging.getLogger('suds.client').setLevel(logging.DEBUG)
-#logging.getLogger('suds.transport').setLevel(logging.DEBUG) # MUST BE THIS?
-#logging.getLogger('suds.xsd.schema').setLevel(logging.DEBUG)
-#logging.getLogger('suds.wsdl').setLevel(logging.DEBUG)
-#logging.getLogger('suds.resolver').setLevel(logging.DEBUG)
-#logging.getLogger('suds.xsd.query').setLevel(logging.DEBUG)
-#logging.getLogger('suds.xsd.basic').setLevel(logging.DEBUG)
-#logging.getLogger('suds.binding.marshaller').setLevel(logging.DEBUG)
-
 
 WSDL_NAME = 'ProcessTransaction.wsdl'
 WSDL_LOCAL_PREFIX = 'BeanStream'
@@ -131,16 +118,6 @@ class BeanResponse(object):
                 r[k] = r[k][0]
 
         self.data = r
-        
-    def __getattr__(self, name):
-        # This is to keep backwards compatibility, I recommend
-        # using self.data dictionary, it's a waste to assign
-        # all dictionary keys as object attibutes. THis will be
-        # removed in the future.
-        try:
-            return self.data[name]
-        except:
-            raise AttributeError(name)        
 
 
 class BeanClient(object):
