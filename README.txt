@@ -1,4 +1,3 @@
-=====
 About
 =====
 
@@ -10,7 +9,6 @@ About Beanstream:
 http://www.beanstream.com/public/index.asp
 
 
-===========================
 Supported transaction types
 ===========================
 
@@ -21,14 +19,12 @@ Supported transaction types
 -Void
 
 
-==============
 Running tests:
 ==============
 
 python setup.py nosetests
 
 
-===========
 Sample Code
 ===========
 
@@ -36,7 +32,7 @@ Check the tests.py file for test transactions.
 
 Here's a sample transaction:
 
-from pybeanstream.classes import BeanClient
+from pybeanstream.client import BeanClient
 
 d = ('John Doe',
      '371100001000131',
