@@ -37,7 +37,7 @@ from pybeanstream.xml_utils import xmltodict
 
 EXPECTED_RSP = json.loads(
     open(os.path.join(
-        os.path.dirname(__file__), 'results.json')).read())
+        os.path.dirname(__file__), 'test_results.json')).read())
 
 
 class TestComponents(unittest.TestCase):
@@ -354,3 +354,34 @@ class TestApiTransactions(unittest.TestCase):
 
         self.assertTrue(result.data['trnApproved'])
         self.assertEqual(result.data['trnOrderNumber'], order_num)
+
+    def test_tkn_pre_auth(self):
+        """
+        Sample transaction using one-time-use tokens (See Legato API
+        for details).
+        """
+
+        single_use_token = 'gt6-50e26ce2-c90c-4170-9778-60025ebe0504'
+        self.b.suds_client.service.TransactionProcess.return_value = (
+            EXPECTED_RSP['test_tkn_pre_auth'])
+
+        # Executing pre-auth
+        result = self.b.preauth_request(
+            'John Doe',
+            '',
+            '',
+            '',
+            '',
+            '10.00',
+            'abcdef-123123-2014-ben-1',
+            'john@doe.com',
+            'John Doe',
+            '514-555-5555',
+            '123 Happy st',
+            'Montreal',
+            'QC',
+            'H2T1N6',
+            'CA',
+            single_use_token=single_use_token,
+        )
+        self.assertTrue(result.data['trnApproved'])

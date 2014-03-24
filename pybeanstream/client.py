@@ -54,6 +54,7 @@ SIZE_LIMITS = {
     'trnExpYear': 2,
     'trnOrderNumber': 30,
     'trnAmount': 9,
+    'singleUseToken': 40,
     'ordEmailAddress': 64,
     'ordName': 64,
     'ordPhoneNumber': 32,
@@ -232,6 +233,7 @@ class BeanClient(object):
                               cust_province,
                               cust_postal_code,
                               cust_country,
+                              single_use_token=None,
                               term_url=' ',
                               vbv_enabled='0',
                               sc_enabled='0',
@@ -267,13 +269,16 @@ class BeanClient(object):
             'termURL': term_url,
             'vbvEnabled': vbv_enabled,
             'scEnabled': sc_enabled,
-            }
+        }
 
         if cust_address_line2:
             transaction_data['ordAddress2'] = cust_address_line2
 
         if trn_language:
             transaction_data['trnLanguage'] = trn_language
+
+        if single_use_token:
+            transaction_data['singleUseToken'] = single_use_token
 
         transaction_data.update(self.auth_data)
 

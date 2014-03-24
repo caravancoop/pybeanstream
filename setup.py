@@ -28,7 +28,7 @@ except ImportError:
 
 
 setup(name='PyBeanstream',
-      version='0.5.1',
+      version='0.5.2',
       description='Payment module to talk with the Beanstream API',
       author='Benoit C. Sirois',
       author_email='bclennett@caravan.coop',
